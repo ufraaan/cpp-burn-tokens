@@ -1,1 +1,5 @@
-/bhs
+projects/*/voxel
+projects/*/bhs
+*.o
+*.dSYM/
+.DS_Store
