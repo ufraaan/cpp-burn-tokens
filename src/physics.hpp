@@ -16,6 +16,9 @@ public:
     std::vector<Particle> particles;
     std::vector<GridPoint> grid;
     std::vector<GravWave> gravWaves;
+    std::vector<KilonovaParticle> kilonova;
+    std::vector<JetParticle> jets;
+    std::vector<FreqRecord> freqHistory;
 
     double time = 0.0;
     double speed = 1.0;
@@ -24,11 +27,12 @@ public:
     double mergerTime = 0.0;
     Vec2 mergerPos;
     double maxOrbitFreq = 0.0;
+    double shakeIntensity = 0.0;
 
-    // For audio chirp
     double getOrbitalFrequency() const;
 
     bool showGrid = true;
+    bool showSpectrogram = true;
 
     SimulationConfig config;
 
@@ -36,10 +40,15 @@ private:
     void updateBlackHoles(double dt);
     void checkMerger();
     void updateParticles(double dt);
+    void updateKilonova(double dt);
+    void updateJets(double dt);
     void spawnParticles();
+    void spawnKilonova();
+    void spawnJets(double dt);
     void initStars();
     void initGrid();
     void updateGrid();
     void addTrailPoints();
     void updateGravWaves();
+    void recordFrequency();
 };

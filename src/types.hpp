@@ -19,6 +19,9 @@ struct Vec2 {
 static inline double clamp(double v, double lo, double hi) {
     return v < lo ? lo : v > hi ? hi : v;
 }
+static inline double lerp(double a, double b, double t) {
+    return a + (b - a) * t;
+}
 
 struct BlackHole {
     Vec2 pos, vel;
@@ -26,6 +29,7 @@ struct BlackHole {
     double radius = 3.0;
     bool merged = false;
     double mergeProgress = 0.0;
+    double dopplerAngle = 0.0;
     std::vector<Vec2> trail;
     static constexpr int MAX_TRAIL = 120;
 };
@@ -52,6 +56,23 @@ struct GravWave {
     Vec2 origin;
     double startTime;
     double amplitude;
+};
+
+struct KilonovaParticle {
+    Vec2 pos, vel;
+    double lifetime, maxLife;
+    int r, g, b;
+};
+
+struct JetParticle {
+    Vec2 pos, vel;
+    double lifetime, maxLife;
+    int r, g, b;
+};
+
+struct FreqRecord {
+    double time;
+    double freq;
 };
 
 struct SimulationConfig {

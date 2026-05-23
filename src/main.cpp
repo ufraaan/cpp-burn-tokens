@@ -75,6 +75,8 @@ int main() {
                     case SDLK_PLUS:   sim.speed = clamp(sim.speed * 1.5, 0.1, 10.0); break;
                     case SDLK_MINUS:  sim.speed = clamp(sim.speed / 1.5, 0.1, 10.0); break;
                     case SDLK_g:      sim.showGrid = !sim.showGrid; break;
+                    case SDLK_s:
+                        sim.showSpectrogram = !sim.showSpectrogram; break;
                     case SDLK_f:
                         getAutoCamera(sim, camX, camY, zoom, W_WIDTH, W_HEIGHT);
                         targetZoom = zoom;
@@ -103,7 +105,6 @@ int main() {
                 dragging = false;
             }
 
-            // Mouse move: pan while dragging
             if (e.type == SDL_MOUSEMOTION && dragging) {
                 double dx = (e.motion.x - dragStartX) / zoom;
                 double dy = (e.motion.y - dragStartY) / zoom;
@@ -111,7 +112,6 @@ int main() {
                 camY = dragStartCamY - dy;
             }
 
-            // Scroll wheel: zoom
             if (e.type == SDL_MOUSEWHEEL) {
                 double factor = (e.wheel.y > 0) ? 1.15 : (1.0 / 1.15);
                 targetZoom = clamp(targetZoom * factor, 0.5, 60.0);
@@ -126,8 +126,16 @@ int main() {
 
         sim.update(frameDt);
 
-        // Smooth zoom interpolation
+        // Smooth zoom
         zoom += (targetZoom - zoom) * 0.12;
+
+        // Screen shake (offset from merger)
+        double shakeX = 0, shakeY = 0;
+        if (sim.shakeIntensity > 0.5) {
+            double si = sim.shakeIntensity / zoom;
+            shakeX = ((double)(std::rand() % 2000) / 1000.0 - 1.0) * si;
+            shakeY = ((double)(std::rand() % 2000) / 1000.0 - 1.0) * si;
+        }
 
         // Audio
         if (audio.isInitialized()) {
@@ -152,8 +160,8 @@ int main() {
             audio.setAmplitude(amp);
         }
 
-        // Render
-        gfx.draw(sim, camX, camY, zoom);
+        // Render with shake offset
+        gfx.draw(sim, camX + shakeX, camY + shakeY, zoom);
         SDL_RenderPresent(renderer);
 
         // Window title
@@ -162,8 +170,6 @@ int main() {
         if (sim.merged) title += " [MERGED]";
         title += " | Speed " + std::to_string((int)(sim.speed * 100)) + "%";
         title += " | " + std::to_string((int)(sim.time * 10) / 10.0) + "s";
-        title += " | " + std::to_string(sim.blackHoles.size()) + " BH";
-        title += " | " + std::to_string(sim.particles.size()) + " particles";
         SDL_SetWindowTitle(window, title.c_str());
 
         // Frame cap
