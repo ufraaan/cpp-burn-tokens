@@ -32,6 +32,57 @@ void Simulation::addBlackHole(Vec2 pos, Vec2 vel, double mass, double radius) {
     blackHoles.push_back({pos, vel, mass, radius, false, 0.0, 0.0});
 }
 
+void Simulation::switchScene(SceneMode mode) {
+    sceneMode = mode;
+    planets.clear();
+    blackHoles.clear();
+    particles.clear();
+    kilonova.clear();
+    jets.clear();
+    gravWaves.clear();
+    freqHistory.clear();
+    merged = false;
+    shakeIntensity = 0.0;
+
+    if (mode == SceneMode::SolarSystem) {
+        // Orbital period scaling: 1 year ≈ 6 simulation seconds
+        // angularVelocity = 2*pi / (period_years * 6.0)
+        struct PlanetData { const char* name; double orbit; double rad; int r, g, b; double period; };
+        PlanetData data[] = {
+            {"Mercury",  12,   0.8,  180, 180, 190, 0.241},
+            {"Venus",    18,   1.2,  220, 180, 130, 0.615},
+            {"Earth",    25,   1.3,  100, 160, 255, 1.0},
+            {"Mars",     35,   0.9,  220, 100, 80,  1.881},
+            {"Jupiter",  60,   3.5,  230, 180, 100, 11.86},
+            {"Saturn",   85,   3.0,  210, 190, 120, 29.46},
+            {"Uranus",   120,  1.8,  140, 210, 220, 84.01},
+            {"Neptune",  155,  1.7,  100, 140, 220, 164.8},
+        };
+
+        for (auto& d : data) {
+            Planet p;
+            p.orbitRadius = d.orbit;
+            p.radius = d.rad;
+            p.angle = randDouble() * 6.2832;
+            p.angularVelocity = 6.2832 / (d.period * 6.0);
+            p.r = d.r; p.g = d.g; p.b = d.b;
+            p.name = d.name;
+            p.pos = Vec2{p.orbitRadius * std::cos(p.angle), p.orbitRadius * std::sin(p.angle)};
+            planets.push_back(p);
+        }
+        time = 0.0;
+    } else {
+        reset();
+    }
+}
+
+void Simulation::updateSolarSystem(double dt) {
+    for (auto& p : planets) {
+        p.angle += p.angularVelocity * dt;
+        p.pos = Vec2{p.orbitRadius * std::cos(p.angle), p.orbitRadius * std::sin(p.angle)};
+    }
+}
+
 void Simulation::initStars() {
     stars.resize(config.numStars);
     for (auto& s : stars) {
@@ -55,6 +106,12 @@ void Simulation::initGrid() {
 void Simulation::update(double dt) {
     if (paused) return;
     dt *= speed;
+
+    if (sceneMode == SceneMode::SolarSystem) {
+        updateSolarSystem(dt);
+        time += dt;
+        return;
+    }
 
     for (int s = 0; s < config.substeps; s++) {
         updateBlackHoles(dt / config.substeps);

@@ -32,6 +32,17 @@ void Renderer::drawText(int x, int y, const char* text, SDL_Color color, TTF_Fon
 
 void Renderer::draw(const Simulation& sim, double cx, double cy, double zoom) {
     drawBackground();
+
+    if (sim.sceneMode == SceneMode::SolarSystem) {
+        drawStars(sim, cx, cy, zoom);
+        drawGrid(sim, cx, cy, zoom);
+        drawOrbits(sim, cx, cy, zoom);
+        drawPlanets(sim, cx, cy, zoom);
+        drawSun(sim, cx, cy, zoom);
+        drawHUD(sim);
+        return;
+    }
+
     drawGrid(sim, cx, cy, zoom);
     drawGravWaves(sim, cx, cy, zoom);
     drawStars(sim, cx, cy, zoom);
@@ -471,6 +482,119 @@ void Renderer::drawSpectrogram(const Simulation& sim) {
     }
 }
 
+// ─── Solar System ──────────────────────────────────────────────────────────────
+void Renderer::drawOrbits(const Simulation& sim, double cx, double cy, double zoom) {
+    for (auto& p : sim.planets) {
+        int ir = (int)(p.orbitRadius * zoom);
+        if (ir < 3 || ir > std::max(w, h)) continue;
+        int ox = sx(0, cx, zoom);
+        int oy = sy(0, cy, zoom);
+
+        SDL_SetRenderDrawColor(ren, 50, 50, 80, 40);
+        for (int dy = -ir; dy <= ir; dy++) {
+            for (int dx = -ir; dx <= ir; dx++) {
+                double d = std::sqrt(dx*dx + dy*dy);
+                if (d > ir - 0.5 && d <= ir + 0.5) {
+                    SDL_RenderDrawPoint(ren, ox + dx, oy + dy);
+                }
+            }
+        }
+    }
+}
+
+void Renderer::drawSun(const Simulation& sim, double cx, double cy, double zoom) {
+    int sx0 = sx(0, cx, zoom);
+    int sy0 = sy(0, cy, zoom);
+    if (sx0 < -100 || sx0 > w + 100 || sy0 < -100 || sy0 > h + 100) return;
+
+    double sunR = 6.0 * zoom;
+    int ir = (int)sunR;
+
+    // Outer corona glow
+    SDL_SetRenderDrawColor(ren, 255, 200, 50, 15);
+    for (int dy = -(ir * 3); dy <= ir * 3; dy++)
+        for (int dx = -(ir * 3); dx <= ir * 3; dx++) {
+            double d = std::sqrt(dx*dx + dy*dy);
+            if (d <= ir * 3 && d > ir * 2.5) {
+                SDL_RenderDrawPoint(ren, sx0 + dx, sy0 + dy);
+            }
+        }
+
+    // Bright corona
+    for (int r = ir * 2; r >= ir; r--) {
+        int alpha = (int)(60 * (1.0 - (double)(r - ir) / ir));
+        SDL_SetRenderDrawColor(ren, 255, 220, 80, alpha);
+        for (int dy = -r; dy <= r; dy++)
+            for (int dx = -r; dx <= r; dx++)
+                if (dx*dx + dy*dy <= r*r)
+                    SDL_RenderDrawPoint(ren, sx0 + dx, sy0 + dy);
+    }
+
+    // Sun surface
+    SDL_SetRenderDrawColor(ren, 255, 200, 50, 255);
+    for (int dy = -ir; dy <= ir; dy++)
+        for (int dx = -ir; dx <= ir; dx++)
+            if (dx*dx + dy*dy <= ir*ir)
+                SDL_RenderDrawPoint(ren, sx0 + dx, sy0 + dy);
+
+    // Bright center
+    int coreR = ir / 2;
+    for (int dy = -coreR; dy <= coreR; dy++)
+        for (int dx = -coreR; dx <= coreR; dx++) {
+            double d = std::sqrt(dx*dx + dy*dy) / coreR;
+            if (d <= 1.0) {
+                int alpha = (int)(255 * (1.0 - d * 0.4));
+                SDL_SetRenderDrawColor(ren, 255, 255, 220, alpha);
+                SDL_RenderDrawPoint(ren, sx0 + dx, sy0 + dy);
+            }
+        }
+
+    // Planet name label
+    drawText(sx0 - 10, sy0 - ir - 18, "Sun", (SDL_Color){255, 200, 50, 255}, fontSmall);
+}
+
+void Renderer::drawPlanets(const Simulation& sim, double cx, double cy, double zoom) {
+    for (auto& p : sim.planets) {
+        int px = sx(p.pos.x, cx, zoom);
+        int py = sy(p.pos.y, cy, zoom);
+        if (px < -20 || px > w + 20 || py < -20 || py > h + 20) continue;
+
+        double visR = p.radius * zoom;
+        if (visR < 2.0) visR = 2.0;
+
+        // Planet glow
+        SDL_SetRenderDrawColor(ren, p.r, p.g, p.b, 30);
+        for (int dy = -(int)(visR * 2); dy <= (int)(visR * 2); dy++)
+            for (int dx = -(int)(visR * 2); dx <= (int)(visR * 2); dx++)
+                if (dx*dx + dy*dy <= (int)(visR * 1.5) * (int)(visR * 1.5))
+                    SDL_RenderDrawPoint(ren, px + dx, py + dy);
+
+        // Planet body
+        int ir = (int)visR;
+        for (int dy = -ir; dy <= ir; dy++)
+            for (int dx = -ir; dx <= ir; dx++)
+                if (dx*dx + dy*dy <= ir*ir)
+                    SDL_RenderDrawPoint(ren, px + dx, py + dy);
+
+        // Saturn rings
+        if (p.name == "Saturn") {
+            int ringR = (int)(visR * 1.8);
+            SDL_SetRenderDrawColor(ren, 200, 180, 140, 120);
+            for (int dy = -ringR; dy <= ringR; dy++)
+                for (int dx = -ringR; dx <= ringR; dx++) {
+                    double d = std::sqrt(dx*dx + dy*dy * 0.3);
+                    if (d > visR * 1.2 && d <= ringR)
+                        SDL_RenderDrawPoint(ren, px + dx, py + dy);
+                }
+        }
+
+        // Name label
+        int labelY = py - ir - 14;
+        SDL_Color col = {(Uint8)p.r, (Uint8)p.g, (Uint8)p.b, 200};
+        drawText(px - (int)(p.name.length() * 4), labelY, p.name.c_str(), col, fontSmall);
+    }
+}
+
 // ─── HUD ──────────────────────────────────────────────────────────────────────
 void Renderer::drawHUD(const Simulation& sim) {
     SDL_Color white = {220, 220, 225, 255};
@@ -501,15 +625,23 @@ void Renderer::drawHUD(const Simulation& sim) {
     SDL_Rect topBg = {0, 0, w, 26};
     SDL_RenderFillRect(ren, &topBg);
 
+    std::string modeLabel = (sim.sceneMode == SceneMode::SolarSystem) ? "Solar System" : "Black Hole Collision";
+    drawText(10, 4, modeLabel.c_str(), accent, fontSmall);
+
     std::string status;
-    status += "Time: " + std::to_string((int)(sim.time * 10) / 10.0) + "s";
+    status += "  |  Time: " + std::to_string((int)(sim.time * 10) / 10.0) + "s";
     status += "  |  Speed: " + std::to_string((int)(sim.speed * 100)) + "%";
     if (sim.paused) status += "  |  [PAUSED]";
     if (sim.merged) status += "  |  [MERGED]";
-    drawText(10, 4, status.c_str(), white, fontSmall);
+    drawText(10 + (int)(modeLabel.length() * 8), 4, status.c_str(), white, fontSmall);
 
-    std::string right = std::to_string(sim.blackHoles.size()) + " BH";
-    right += "  |  " + std::to_string(sim.particles.size() + sim.kilonova.size() + sim.jets.size()) + " particles";
+    std::string right;
+    if (sim.sceneMode == SceneMode::BlackHoles) {
+        right = std::to_string(sim.blackHoles.size()) + " BH";
+        right += "  |  " + std::to_string(sim.particles.size() + sim.kilonova.size() + sim.jets.size()) + " particles";
+    } else {
+        right = std::to_string(sim.planets.size()) + " planets";
+    }
     drawText(w - 10 - (int)right.length() * 7, 4, right.c_str(), dim, fontSmall);
 
     // Bottom controls bar (if no spectrogram, show at very bottom)
@@ -519,8 +651,15 @@ void Renderer::drawHUD(const Simulation& sim) {
     SDL_Rect ctrlBg = {0, barY - 4, w, 30};
     SDL_RenderFillRect(ren, &ctrlBg);
 
-    const char* ctrl1 = "Space:Pause  R:Reset  G:Grid  F:Frame  S:GWave  Scroll:Zoom";
-    const char* ctrl2 = "Drag:Pan  Right-Click:Add BH  ESC:Quit";
+    const char* ctrl1;
+    const char* ctrl2;
+    if (sim.sceneMode == SceneMode::SolarSystem) {
+        ctrl1 = "1:Black Holes  2:Solar System  Space:Pause  G:Grid  Scroll:Zoom";
+        ctrl2 = "Drag:Pan  F:Frame All  ESC:Quit";
+    } else {
+        ctrl1 = "1:Black Holes  2:Solar System  Space:Pause  R:Reset  G:Grid  S:GWave";
+        ctrl2 = "Scroll:Zoom  Drag:Pan  Right-Click:Add BH  F:Frame  ESC:Quit";
+    }
     drawText(10, barY, ctrl1, accent, fontSmall);
     drawText(10, barY + 14, ctrl2, accent, fontSmall);
 

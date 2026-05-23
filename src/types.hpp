@@ -1,6 +1,9 @@
 #pragma once
 #include <cmath>
 #include <vector>
+#include <string>
+
+enum class SceneMode { BlackHoles, SolarSystem };
 
 struct Vec2 {
     double x = 0, y = 0;
@@ -73,6 +76,16 @@ struct JetParticle {
 struct FreqRecord {
     double time;
     double freq;
+};
+
+struct Planet {
+    Vec2 pos;
+    double orbitRadius;
+    double angle;
+    double angularVelocity;
+    double radius;
+    int r, g, b;
+    std::string name;
 };
 
 struct SimulationConfig {

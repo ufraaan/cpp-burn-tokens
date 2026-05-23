@@ -29,6 +29,9 @@ private:
     void drawTrails(const Simulation& sim, double cx, double cy, double zoom);
     void drawBlackHoles(const Simulation& sim, double cx, double cy, double zoom);
     void drawSpectrogram(const Simulation& sim);
+    void drawOrbits(const Simulation& sim, double cx, double cy, double zoom);
+    void drawSun(const Simulation& sim, double cx, double cy, double zoom);
+    void drawPlanets(const Simulation& sim, double cx, double cy, double zoom);
     void drawHUD(const Simulation& sim);
 
     int sx(double wx, double cx, double zm) const;

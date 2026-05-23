@@ -9,9 +9,12 @@ public:
     void update(double dt);
     void reset();
     void addBlackHole(Vec2 pos, Vec2 vel, double mass, double radius);
+    void switchScene(SceneMode mode);
 
     // State
+    SceneMode sceneMode = SceneMode::BlackHoles;
     std::vector<BlackHole> blackHoles;
+    std::vector<Planet> planets;
     std::vector<Star> stars;
     std::vector<Particle> particles;
     std::vector<GridPoint> grid;
@@ -38,6 +41,7 @@ public:
 
 private:
     void updateBlackHoles(double dt);
+    void updateSolarSystem(double dt);
     void checkMerger();
     void updateParticles(double dt);
     void updateKilonova(double dt);

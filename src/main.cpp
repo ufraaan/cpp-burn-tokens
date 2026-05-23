@@ -54,6 +54,7 @@ int main() {
     double camX, camY, zoom;
     getAutoCamera(sim, camX, camY, zoom, W_WIDTH, W_HEIGHT);
     double targetZoom = zoom;
+    bool inSolarSystem = false;
 
     bool running = true;
     bool dragging = false;
@@ -80,6 +81,18 @@ int main() {
                     case SDLK_f:
                         getAutoCamera(sim, camX, camY, zoom, W_WIDTH, W_HEIGHT);
                         targetZoom = zoom;
+                        break;
+                    case SDLK_1:
+                        sim.switchScene(SceneMode::BlackHoles);
+                        inSolarSystem = false;
+                        getAutoCamera(sim, camX, camY, zoom, W_WIDTH, W_HEIGHT);
+                        targetZoom = zoom;
+                        break;
+                    case SDLK_2:
+                        sim.switchScene(SceneMode::SolarSystem);
+                        inSolarSystem = true;
+                        camX = 0; camY = 0;
+                        zoom = 10.0; targetZoom = 10.0;
                         break;
                 }
             }
