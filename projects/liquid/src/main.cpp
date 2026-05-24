@@ -35,6 +35,17 @@ public:
 
     int IX(int i, int j) const { return j * (N + 2) + i; }
 
+    void addDensityLine(int x1, int y1, int x2, int y2, float amount, float radius) {
+        int steps = std::max(std::abs(x2 - x1), std::abs(y2 - y1));
+        if (steps < 1) steps = 1;
+        for (int s = 0; s <= steps; s++) {
+            float t = (float)s / steps;
+            int cx = x1 + (int)((x2 - x1) * t);
+            int cy = y1 + (int)((y2 - y1) * t);
+            addDensity(cx, cy, amount, radius);
+        }
+    }
+
     void addDensity(int x, int y, float amount, float radius) {
         for (int j = -(int)radius; j <= (int)radius; j++) {
             for (int i = -(int)radius; i <= (int)radius; i++) {
@@ -413,7 +424,7 @@ int main() {
                 int ngy = (e.motion.y - PAD) * N / CONT_H;
                 if (gx >= 1 && gx <= N && gy >= 1 && gy <= N &&
                     ngx >= 1 && ngx <= N && ngy >= 1 && ngy <= N) {
-                    sol.addDensity(ngx, ngy, 0.4f, 4);
+                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4);
                     sol.addVelocity(gx, gy,
                         (ngx - gx) * 60.0f, (ngy - gy) * 60.0f, 5);
                 }
