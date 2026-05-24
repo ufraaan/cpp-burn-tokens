@@ -40,3 +40,7 @@ make && ./liquid
 ```
 
 **Dependencies:** SDL2 + SDL2_ttf (install via Homebrew: `brew install sdl2 sdl2_ttf`) for the GUI projects. The constexpr-tracer and pi-montecarlo additionally require the Metal and Foundation frameworks (included with macOS).
+
+---
+
+<p align="center"><sub><i>one day i'll understand what any of this actually does, but today is not that day</i></sub></p>

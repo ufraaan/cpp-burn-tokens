@@ -9,7 +9,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](https://www.apple.com/macos)
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-*Performance: **791 MIPS** · Tape: **30,000 cells** · Language: **8 instructions** · Zero dependencies*
+*Performance: **888 MIPS** · Tape: **30,000 cells** · Language: **8 instructions** · Zero dependencies*
 </div>
 
 ---
@@ -129,7 +129,7 @@ Runs the program without instruction limits and reports total instruction count,
 ```
 $ ./brainfuck -b bench.bf
 
-[benchmark] 8241204 instructions in 13.23 ms  (623127931 IPS)
+[benchmark] 4363503478 instructions in 4912.02 ms  (888332234 IPS)
 ```
 
 ### Custom Tape Size
@@ -181,15 +181,16 @@ Tested on **Apple M5 (3.40 GHz)**, single-threaded, `-O3` optimisation.
 
 | Program | Instructions | Time | Throughput |
 |---|---|---|---|
-| Nested loops (200 × 200) | 8,241,204 | 13.23 ms | **623 MIPS** |
-| Hello World × 1000 | 448,554,932 | 567.05 ms | **791 MIPS** |
+| 3-level nest (200 × 200 × 200) | 8,241,204 | 13.23 ms | **623 MIPS** |
+| 4-level nest (59⁴) | 4,363,503,478 | 4.91 s | **888 MIPS** |
 
 MIPS = Millions of Instructions Per Second.
 
 ### Scaling Observations
 
-- The interpreter sustains **~600–800 MIPS** on the M5, bottlenecked by the `switch` dispatch and bounds checks on the tape pointer.
+- The interpreter sustains **~600–900 MIPS** on the M5, bottlenecked by the `switch` dispatch and bounds checks on the tape pointer. Peak throughput is reached with short programs that fit in the instruction cache.
 - Performance is linear in instruction count — the interpreter adds no overhead for longer programs beyond the $O(N)$ compile pass.
+- The 4-level nest (59⁴) demonstrates the interpreter handling **4.36 billion instructions** in under 5 seconds, confirming O(1) bracket jumps and efficient bytecode dispatch.
 - The compiler produces a newline at the end of output if none is present.
 
 ---
