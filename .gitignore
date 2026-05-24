@@ -6,6 +6,7 @@ projects/*/brainfuck
 projects/*/pi-montecarlo
 projects/raster/raster
 projects/raster/*.ppm
+projects/hector/hector
 *.o
 *.dSYM/
 .DS_Store

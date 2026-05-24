@@ -28,6 +28,10 @@ Huffman + LZW file compressor — zero dependencies, pure C++17, bit-level I/O.
 
 Brainfuck esoteric language interpreter — 8 commands, tape machine, debug/step/benchmark modes.
 
+### [hector](./projects/hector)
+
+Header-only vector similarity search — SIMD-accelerated distance, L2/cosine/inner-product, flat and IVF indices.
+
 ### [raster](./projects/raster)
 
 CPU-based software 3D rasterizer — Blinn-Phong shading, bilinear texture mapping, Cornell box scene.
