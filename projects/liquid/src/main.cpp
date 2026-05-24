@@ -205,8 +205,9 @@ private:
 
     void integrate(float dt, const SPHParams& params) {
         Vec2 grav(0, params.gravity);
+        float invMass = 1.0f / params.mass;
         for (int i = 0; i < (int)m_parts.size(); i++) {
-            Vec2 acc = m_force[i] + grav;
+            Vec2 acc = m_force[i] * invMass + grav;
             m_parts[i].vel += acc * dt;
             m_parts[i].pos += m_parts[i].vel * dt;
         }
@@ -241,22 +242,16 @@ public:
         m_fieldW = w / 4;
         m_fieldH = h / 4;
         m_field.assign(m_fieldW * m_fieldH, 0);
-        m_fieldTex = SDL_CreateTexture(ren,
-            SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, m_fieldW, m_fieldH);
     }
 
-    ~FluidRenderer() {
-        if (m_fieldTex) SDL_DestroyTexture(m_fieldTex);
-    }
-
-    void present(const SPHSolver& solver) {
-        SDL_SetRenderDrawColor(m_ren, 5, 5, 15, 255);
+    void present(const SPHSolver& solver, float mass) {
+        SDL_SetRenderDrawColor(m_ren, 8, 8, 24, 255);
         SDL_RenderClear(m_ren);
 
-        // Compute density field
+        // Compute density field (same 2D poly6 as SPH solver, with mass)
         float h = solver.h();
         float h2 = h * h;
-        float pk = 4.0f / (M_PI * h2); // poly6 constant
+        float pk = 4.0f / (M_PI * h2) * mass;
 
         std::fill(m_field.begin(), m_field.end(), 0.0f);
 
@@ -283,61 +278,41 @@ public:
             }
         }
 
-        // Render density field to texture
-        std::vector<Uint32> pixels(m_fieldW * m_fieldH);
-        float threshold = 0.3f;
-        float twoThirds = threshold * 0.666f;
-
+        // Render field directly with colored quads
         for (int y = 0; y < m_fieldH; y++) {
             for (int x = 0; x < m_fieldW; x++) {
                 float d = m_field[y * m_fieldW + x];
-                if (d < twoThirds) {
-                    pixels[y * m_fieldW + x] = 0xFF080818; // dark background
-                } else if (d < threshold) {
-                    // Foam/edge
-                    float t = (d - twoThirds) / (threshold - twoThirds);
-                    Uint8 v = (Uint8)(t * 200);
-                    pixels[y * m_fieldW + x] = (0xFF << 24) | (v << 16) | (v << 8) | v;
+                if (d < 0.1f) continue;
+
+                Uint8 r, g, b;
+                if (d < 0.3f) {
+                    // Foam ring
+                    float t = (d - 0.1f) / 0.2f;
+                    float v = t * t * 200;
+                    r = (Uint8)v; g = (Uint8)(v * 0.9f); b = (Uint8)v;
                 } else {
-                    // Water body
-                    float excess = (d - threshold) / threshold;
-                    float bright = std::min(1.0f, 0.4f + excess * 0.6f);
-
-                    // Deep blue to cyan based on depth
-                    Uint8 r = (Uint8)(30 * bright);
-                    Uint8 g = (Uint8)((100 + 80 * excess) * bright);
-                    Uint8 b = (Uint8)((180 + 75 * excess) * bright);
-
-                    // Specular highlight based on gradient
-                    float gxL = x > 0 ? m_field[y * m_fieldW + x - 1] : d;
-                    float gxR = x < m_fieldW - 1 ? m_field[y * m_fieldW + x + 1] : d;
-                    float gyU = y > 0 ? m_field[(y-1) * m_fieldW + x] : d;
-                    float gyD = y < m_fieldH - 1 ? m_field[(y+1) * m_fieldW + x] : d;
-
-                    float nx = (gxL - gxR);
-                    float ny = (gyU - gyD);
-                    float nLen = std::sqrt(nx * nx + ny * ny);
-                    if (nLen > 0.001f) {
-                        // Cheaper approximation: just use horizontal gradient
-                        float spec = std::max(0.0f, 1.0f - std::abs(nx / (nLen + 0.001f)));
-                        spec = spec * spec * 0.3f;
-                        r = (Uint8)std::min(255.0f, r + spec * 200);
-                        g = (Uint8)std::min(255.0f, g + spec * 200);
-                        b = (Uint8)std::min(255.0f, b + spec * 200);
-                    }
-
-                    pixels[y * m_fieldW + x] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    // Water body — bright blue
+                    float bright = std::min(1.0f, 0.5f + (d - 0.3f) / 0.5f * 0.5f);
+                    r = (Uint8)(40 * bright);
+                    g = (Uint8)(130 * bright);
+                    b = (Uint8)(220 * bright);
                 }
+
+                SDL_SetRenderDrawColor(m_ren, r, g, b, 255);
+                SDL_Rect rc = {x * 4, y * 4, 4, 4};
+                SDL_RenderFillRect(m_ren, &rc);
             }
         }
+    }
 
-        SDL_UpdateTexture(m_fieldTex, nullptr, pixels.data(), m_fieldW * 4);
-        SDL_RenderCopy(m_ren, m_fieldTex, nullptr, nullptr);
+    float maxField() const {
+        float mx = 0;
+        for (float v : m_field) if (v > mx) mx = v;
+        return mx;
     }
 
 private:
     SDL_Renderer* m_ren;
-    SDL_Texture* m_fieldTex;
     int m_w, m_h, m_fieldW, m_fieldH;
     std::vector<float> m_field;
 };
@@ -357,15 +332,15 @@ int main() {
 
     SPHSolver solver(WIN_W, WIN_H, H);
     SPHParams params;
-    params.mass = 1.0f;
+    params.mass = 80.0f;
     params.restDens = 1.0f;
-    params.gasConst = 0.5f;
+    params.gasConst = 30000.0f;
     params.viscosity = 0.3f;
-    params.gravity = 1.5f;
-    params.dt = 0.004f;
+    params.gravity = 500.0f;
+    params.dt = 0.003f;
     params.subSteps = 3;
     params.wallDamp = 0.3f;
-    params.surfTens = 0.04f;
+    params.surfTens = 0.02f;
 
     // Initial water block
     solver.addBlock(180, 60, 20, 10);
@@ -395,7 +370,7 @@ int main() {
                         solver.addBlock(200 + rand() % 200, 40, 8, 10);
                         break;
                     case SDLK_g:
-                        params.gravity = (params.gravity == 0) ? 1.5f : 0.0f;
+                        params.gravity = (params.gravity == 0) ? 500.0f : 0.0f;
                         break;
                 }
             }
@@ -425,7 +400,7 @@ int main() {
         } else spawnT = 0;
 
         solver.update(params);
-        renderer.present(solver);
+        renderer.present(solver, params.mass);
 
         // HUD border
         SDL_SetRenderDrawColor(ren, 30, 35, 55, 40);
@@ -439,8 +414,8 @@ int main() {
             fps = frames;
             char buf[128];
             std::snprintf(buf, sizeof(buf),
-                "Liquid [%d FPS | %zu drops] Click=spray  R=reset  Space=splash  G=gravity",
-                fps, solver.parts().size());
+                "Liquid [%d FPS | %zu drops | max=%.2f] Click=spray  R=reset  Space=splash  G=gravity",
+                fps, solver.parts().size(), renderer.maxField());
             SDL_SetWindowTitle(win, buf);
             frames = 0;
             fpsT = now;
