@@ -1,5 +1,7 @@
 # liquid — Eulerian Grid Fluid Simulation
 
+![liquid simulation preview](./liquid.gif)
+
 Real-time 2D fluid simulation using a MAC grid with semi-Lagrangian advection, Jacobi pressure projection, and OpenMP parallelism.
 
 ## Features
