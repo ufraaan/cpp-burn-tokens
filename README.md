@@ -28,6 +28,10 @@ Huffman + LZW file compressor — zero dependencies, pure C++17, bit-level I/O.
 
 Brainfuck esoteric language interpreter — 8 commands, tape machine, debug/step/benchmark modes.
 
+### [raster](./projects/raster)
+
+CPU-based software 3D rasterizer — Blinn-Phong shading, bilinear texture mapping, Cornell box scene.
+
 ---
 
 ## Building
