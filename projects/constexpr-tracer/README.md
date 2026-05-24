@@ -78,35 +78,35 @@ $$
 with $N_\mathrm{AA} = 6$. These are mapped to world-space ray directions via the camera model:
 
 $$
-p_x = (2u - 1) \cdot A \cdot F, \quad
-p_y = (1 - 2v) \cdot F, \quad
-\mathbf{r}_d = \frac{(p_x,\, p_y,\, 1)}{\|(p_x,\, p_y,\, 1)\|}
+p_{x} = (2u - 1) \cdot A \cdot F, \quad
+p_{y} = (1 - 2v) \cdot F, \quad
+\mathbf{r}_{d} = \frac{(p_{x},\, p_{y},\, 1)}{\|(p_{x},\, p_{y},\, 1)\|}
 $$
 
 where $A = W/H$ is the aspect ratio and $F = 0.7$ is the vertical field-of-view factor (corresponding to approximately $70^\circ$ vertical FOV).
 
 ### Depth of Field
 
-A thin-lens camera model is implemented by perturbing the ray origin on a disk of radius $a = 0.018$ (aperture radius) and redirecting toward the focal plane at distance $d_f = 6.0$:
+A thin-lens camera model is implemented by perturbing the ray origin on a disk of radius $a = 0.018$ (aperture radius) and redirecting toward the focal plane at distance $d_{f} = 6.0$:
 
 $$
-\mathbf{p}_\mathrm{lens} = \mathbf{p}_\mathrm{cam} + \delta_x \hat{\mathbf{x}} + \delta_y \hat{\mathbf{y}}, \quad
-\mathbf{p}_\mathrm{focal} = \mathbf{p}_\mathrm{cam} + \mathbf{r}_d \cdot d_f
+\mathbf{p}_\mathrm{lens} = \mathbf{p}_\mathrm{cam} + \delta_{x} \hat{\mathbf{x}} + \delta_{y} \hat{\mathbf{y}}, \quad
+\mathbf{p}_\mathrm{focal} = \mathbf{p}_\mathrm{cam} + \mathbf{r}_{d} \cdot d_{f}
 $$
 
 $$
-\mathbf{r}'_d = \frac{\mathbf{p}_\mathrm{focal} - \mathbf{p}_\mathrm{lens}}{\|\mathbf{p}_\mathrm{focal} - \mathbf{p}_\mathrm{lens}\|}
+\mathbf{r}'_{d} = \frac{\mathbf{p}_\mathrm{focal} - \mathbf{p}_\mathrm{lens}}{\|\mathbf{p}_\mathrm{focal} - \mathbf{p}_\mathrm{lens}\|}
 $$
 
-The lens offset $(\delta_x, \delta_y)$ is computed via the **concentric disk mapping** of Shirley \& Chiu [^1] to ensure uniform sampling of the aperture without distortion.
+The lens offset $(\delta_{x}, \delta_{y})$ is computed via the **concentric disk mapping** of Shirley \& Chiu [^1] to ensure uniform sampling of the aperture without distortion.
 
 ### Ray-Sphere Intersection
 
 The quadratic ray-sphere intersection test follows the standard formulation. For a sphere with centre $\mathbf{c}$ and radius $r$:
 
 $$
-\mathbf{oc} = \mathbf{r}_o - \mathbf{c}, \quad
-b = \mathbf{oc} \cdot \mathbf{r}_d, \quad
+\mathbf{oc} = \mathbf{r}_{o} - \mathbf{c}, \quad
+b = \mathbf{oc} \cdot \mathbf{r}_{d}, \quad
 c = \|\mathbf{oc}\|^2 - r^2
 $$
 
@@ -123,27 +123,27 @@ The near intersection is always preferred. If the ray origin is inside the spher
 
 ### Area Light Sampling
 
-A rectangular area light source is defined by its centre $\mathbf{p}_l$, half-extent vectors $\mathbf{u}_l, \mathbf{v}_l$, and emitted radiance $\mathbf{L}_e$. At each surface hit point $\mathbf{p}$, $N_\mathrm{area} = 24$ shadow rays are traced toward random points on the light:
+A rectangular area light source is defined by its centre $\mathbf{p}_{l}$, half-extent vectors $\mathbf{u}_{l}, \mathbf{v}_{l}$, and emitted radiance $\mathbf{L}_{e}$. At each surface hit point $\mathbf{p}$, $N_\mathrm{area} = 24$ shadow rays are traced toward random points on the light:
 
 $$
-\mathbf{p}_\mathrm{sample} = \mathbf{p}_l + \mathbf{u}_l (2\xi_1 - 1) + \mathbf{v}_l (2\xi_2 - 1)
+\mathbf{p}_\mathrm{sample} = \mathbf{p}_{l} + \mathbf{u}_{l} (2\xi_{1} - 1) + \mathbf{v}_{l} (2\xi_{2} - 1)
 $$
 
-where $\xi_1, \xi_2$ are deterministic hash-sampled variates (see [Deterministic Sampling](#deterministic-sampling)). The Monte Carlo estimator for the area light contribution is:
+where $\xi_{1}, \xi_{2}$ are deterministic hash-sampled variates (see [Deterministic Sampling](#deterministic-sampling)). The Monte Carlo estimator for the area light contribution is:
 
 $$
-\mathbf{L}_\mathrm{area} = \frac{\mathbf{L}_e A_l}{N_\mathrm{area}} \sum_{k=1}^{N_\mathrm{area}} \frac{V_k \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_k)^+ \cdot (\mathbf{n}_l \cdot (-\boldsymbol{\omega}_k))^+}{\|\mathbf{p}_\mathrm{sample} - \mathbf{p}\|^2}
+\mathbf{L}_\mathrm{area} = \frac{\mathbf{L}_{e} A_{l}}{N_\mathrm{area}} \sum_{k=1}^{N_\mathrm{area}} \frac{V_{k} \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_{k})^+ \cdot (\mathbf{n}_{l} \cdot (-\boldsymbol{\omega}_{k}))^+}{\|\mathbf{p}_\mathrm{sample} - \mathbf{p}\|^2}
 $$
 
-where $A_l = 4\|\mathbf{u}_l\|\|\mathbf{v}_l\|$ is the light area, $V_k$ is the binary visibility (shadow test), $\boldsymbol{\omega}_k$ is the unit direction from $\mathbf{p}$ to the sample point, and $\mathbf{n}_l$ is the light normal. The geometric cosine term for the light's orientation ensures proper weighting for off-axis samples.
+where $A_{l} = 4\|\mathbf{u}_l\|\|\mathbf{v}_l\|$ is the light area, $V_{k}$ is the binary visibility (shadow test), $\boldsymbol{\omega}_{k}$ is the unit direction from $\mathbf{p}$ to the sample point, and $\mathbf{n}_{l}$ is the light normal. The geometric cosine term for the light's orientation ensures proper weighting for off-axis samples.
 
 A secondary directional light with a single shadow ray provides fill lighting and specular highlights:
 
 $$
-\mathbf{L}_\mathrm{dir} = \mathbf{c}_s \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_l)^+ \cdot V \cdot \mathbf{L}_d
+\mathbf{L}_\mathrm{dir} = \mathbf{c}_{s} \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_{l})^+ \cdot V \cdot \mathbf{L}_{d}
 $$
 
-with a Blinn-Phong specular lobe of exponent $n_s = 64$.
+with a Blinn-Phong specular lobe of exponent $n_{s} = 64$.
 
 ### Material System
 
@@ -162,39 +162,39 @@ The material model supports five surface types distinguished by two parameters p
 The glass sphere implements **Snell's law** of refraction with **Fresnel-Schlick** reflectance. When a ray hits a glass surface, the Fresnel term $F(\theta)$ determines the probability of reflection versus refraction:
 
 $$
-R_0 = \left(\frac{\eta_1 - \eta_2}{\eta_1 + \eta_2}\right)^2, \quad
-F(\theta) = R_0 + (1 - R_0)(1 - \cos\theta)^5
+R_{0} = \left(\frac{\eta_{1} - \eta_{2}}{\eta_{1} + \eta_{2}}\right)^2, \quad
+F(\theta) = R_{0} + (1 - R_{0})(1 - \cos\theta)^5
 $$
 
 The refracted direction follows Snell's law:
 
 $$
-\eta = \frac{\eta_1}{\eta_2}, \quad
-\cos\theta_t = \sqrt{1 - \eta^2 (1 - \cos^2\theta_i)}
+\eta = \frac{\eta_{1}}{\eta_{2}}, \quad
+\cos\theta_{t} = \sqrt{1 - \eta^2 (1 - \cos^2\theta_{i})}
 $$
 
 $$
-T = \eta \, \mathbf{r}_d + (\eta \cos\theta_i - \cos\theta_t) \, \mathbf{n}
+T = \eta \, \mathbf{r}_{d} + (\eta \cos\theta_{i} - \cos\theta_{t}) \, \mathbf{n}
 $$
 
-**Total internal reflection** occurs when $1 - \eta^2 (1 - \cos^2\theta_i) < 0$, in which case the ray is reflected instead. When the ray enters the sphere, the **exit point** is found by a second ray-sphere intersection from inside, and the ray is refracted back to the exterior medium. **Beer's law** attenuates the throughput along the internal chord:
+**Total internal reflection** occurs when $1 - \eta^2 (1 - \cos^2\theta_{i}) < 0$, in which case the ray is reflected instead. When the ray enters the sphere, the **exit point** is found by a second ray-sphere intersection from inside, and the ray is refracted back to the exterior medium. **Beer's law** attenuates the throughput along the internal chord:
 
 $$
-\boldsymbol{\tau} = \exp\left(-\boldsymbol{\sigma}_a \cdot d\right)
+\boldsymbol{\tau} = \exp\left(-\boldsymbol{\sigma}_{a} \cdot d\right)
 $$
 
-where $\boldsymbol{\sigma}_a = (1 - \mathbf{c}_\mathrm{glass}) \cdot 0.3$ is the absorption coefficient derived from the glass colour, and $d$ is the internal chord length.
+where $\boldsymbol{\sigma}_{a} = (1 - \mathbf{c}_\mathrm{glass}) \cdot 0.3$ is the absorption coefficient derived from the glass colour, and $d$ is the internal chord length.
 
 ### Glossy Microfacet Reflections
 
 Reflective surfaces with $\alpha > 0$ perturb the perfect specular reflection direction by a random offset on a disk of radius $\alpha$:
 
 $$
-\mathbf{r}_\mathrm{refl} = \mathrm{reflect}(\mathbf{r}_d, \mathbf{n}), \quad
-\mathbf{r}'_\mathrm{refl} = \frac{\mathbf{r}_\mathrm{refl} + \delta_x \mathbf{u}_\perp + \delta_y \mathbf{v}_\perp}{\|\cdots\|}
+\mathbf{r}_\mathrm{refl} = \mathrm{reflect}(\mathbf{r}_{d}, \mathbf{n}), \quad
+\mathbf{r}'_\mathrm{refl} = \frac{\mathbf{r}_\mathrm{refl} + \delta_{x} \mathbf{u}_\perp + \delta_{y} \mathbf{v}_\perp}{\|\cdots\|}
 $$
 
-where $\mathbf{u}_\perp, \mathbf{v}_\perp$ span an orthonormal basis around the reflection direction, and $(\delta_x, \delta_y)$ is a concentric-disk sample. This models a microfacetted surface with roughness parameter $\alpha$ controlling the width of the specular lobe.
+where $\mathbf{u}_\perp, \mathbf{v}_\perp$ span an orthonormal basis around the reflection direction, and $(\delta_{x}, \delta_{y})$ is a concentric-disk sample. This models a microfacetted surface with roughness parameter $\alpha$ controlling the width of the specular lobe.
 
 ### Tone Mapping
 
