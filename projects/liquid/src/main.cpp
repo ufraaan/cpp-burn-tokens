@@ -67,17 +67,17 @@ public:
         // 1. Add external forces (gravity)
         for (int j = 1; j <= N; j++)
             for (int i = 1; i <= N; i++)
-                v[j * sz + i] += 200.0f * dt; // gravity pulling down
+                v[j * sz + i] += 50.0f * dt;
 
-        // 2. Advect velocity (semi-Lagrangian)
-        advect(u.data(), u_prev.data(), v.data(), u.data(), dt);
-        advect(v.data(), v_prev.data(), u.data(), v.data(), dt);
+        // 2. Advect velocity: write result to _prev, then swap
+        advect(u_prev.data(), u.data(), u.data(), v.data(), dt);
+        advect(v_prev.data(), v.data(), u.data(), v.data(), dt);
         std::swap(u, u_prev);
         std::swap(v, v_prev);
 
         // 3. Diffuse velocity
-        diffuse(u.data(), u_prev.data(), visc, dt);
-        diffuse(v.data(), v_prev.data(), visc, dt);
+        diffuse(u_prev.data(), u.data(), visc, dt);
+        diffuse(v_prev.data(), v.data(), visc, dt);
         std::swap(u, u_prev);
         std::swap(v, v_prev);
 
@@ -85,7 +85,7 @@ public:
         project(u.data(), v.data(), p.data(), div.data());
 
         // 5. Advect density
-        advect(dens.data(), dens_prev.data(), u.data(), v.data(), dt);
+        advect(dens_prev.data(), dens.data(), u.data(), v.data(), dt);
         std::swap(dens, dens_prev);
     }
 
@@ -118,8 +118,8 @@ private:
         int sz = N + 2;
         for (int j = 1; j <= N; j++) {
             for (int i = 1; i <= N; i++) {
-                float x = i - dt * u[IX(i,j)] * N;
-                float y = j - dt * v[IX(i,j)] * N;
+                float x = i - dt * u[IX(i,j)];
+                float y = j - dt * v[IX(i,j)];
                 if (x < 0.5f) x = 0.5f; if (x > N + 0.5f) x = N + 0.5f;
                 if (y < 0.5f) y = 0.5f; if (y > N + 0.5f) y = N + 0.5f;
                 d[IX(i,j)] = sample(d0, x, y);
@@ -268,7 +268,7 @@ int main() {
     sol.dt = 0.02f;
 
     // Place a blob of water
-    sol.addDensity(N/2, N/2 + 10, 1.0f, 12);
+    sol.addDensity(N/2, N/2 - 5, 1.0f, 14);
 
     Renderer rend(ren, WIN_W, WIN_H, N);
 
@@ -290,7 +290,7 @@ int main() {
                     std::fill(sol.dens.begin(), sol.dens.end(), 0.0f);
                     std::fill(sol.u.begin(), sol.u.end(), 0.0f);
                     std::fill(sol.v.begin(), sol.v.end(), 0.0f);
-                    sol.addDensity(N/2, N/2 + 10, 1.0f, 12);
+                    sol.addDensity(N/2, N/2 - 5, 1.0f, 14);
                 }
                 if (e.key.keysym.sym == SDLK_SPACE) {
                     sol.addDensity(N/2 - 8 + rand()%16, N/4, 0.8f, 8);
@@ -319,6 +319,7 @@ int main() {
         lastTick = now;
 
         sol.step();
+
         rend.present(sol);
         SDL_RenderPresent(ren);
 
