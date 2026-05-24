@@ -39,7 +39,7 @@ int main() {
     SDL_Texture* tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
         SDL_TEXTUREACCESS_STREAMING, W, H);
 
-    printf("Rendering %dx%d | 4x4 AA | 8 bounces | 24x area light | DOF | glass | glossy\n", W, H);
+    printf("Rendering %dx%d | 6x6 AA | 8 bounces | 24x Halton | DOF | glass split | glossy\n", W, H);
     fflush(stdout);
 
     auto t0 = std::chrono::steady_clock::now();
@@ -59,9 +59,9 @@ int main() {
     SDL_Color dim   = {160, 160, 160, 200};
 
     char line1[128], line2[128], line3[128], line4[128];
-    snprintf(line1, sizeof line1, "%dx%d  |  4x4 AA  |  %d bounces", W, H, 8);
-    snprintf(line2, sizeof line2, "area light 24x  |  DOF f/%.1f", 1.0 / 0.018);
-    snprintf(line3, sizeof line3, "8 spheres  |  glass IOR 1.5  |  glossy");
+    snprintf(line1, sizeof line1, "%dx%d  |  6x6 AA  |  %d bounces", W, H, 8);
+    snprintf(line2, sizeof line2, "area 24x Halton  |  DOF f/%.1f", 1.0 / 0.018);
+    snprintf(line3, sizeof line3, "8 spheres  |  glass split  |  IGN + Halton");
     snprintf(line4, sizeof line4, "%.0f ms", ms);
 
     int lw[4], lh[4];

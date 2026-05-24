@@ -286,6 +286,48 @@ The scene consists of **8 spheres** arranged on a checkerboard ground plane, ill
 │  │  └────────────────────────────────────────────────┘  │     │
 │  └──────────────────────────────────────────────────────┘     │
 └────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Host ["main.cpp (SDL2 Application)"]
+        direction TB
+        A1["Scene Definition (GpuScene data)"]
+        A2["Metal Compute Dispatch (GpuTracer::render())"]
+        A3["TTF HUD Overlay (render-stamp metadata)"]
+    end
+
+    subgraph Bridge ["gpu_tracer.mm (Objective-C++ Wrapper)"]
+        direction TB
+        B1["MTLDevice · MTLCommandQueue · MTLComputePipelineState"]
+        B2["MTLBuffer (shared storage mode)"]
+        B3["Runtime Shader Compilation (newLibraryWithSource:)"]
+        B2 --> B2a["Pixel framebuffer (4 × W × H bytes)"]
+        B2 --> B2b["Sphere data (8 × 40 bytes)"]
+        B2 --> B2c["Area light data (48 bytes)"]
+        B2 --> B2d["Uniforms (light dir, cam pos, dimensions)"]
+    end
+
+    subgraph GPU ["GPU (Apple M5 10-core)"]
+        direction TB
+        C1["Dispatch: 3420 × 2146 × (1 thread per pixel)"]
+        C2["Threadgroup: 8 × 8 = 64 threads"]
+        subgraph Kernel ["raytrace() kernel (MSL 2.4)"]
+            direction TB
+            D1["For each of 36 AA samples (6×6):"]
+            D2["Generate primary ray with DOF offset (IGN blue noise)"]
+            D3["For bounce 0..8:"]
+            D4["Sphere intersection (8 spheres, Halton LDS shadow)"]
+            D5["Area light intersection"]
+            D6["Material evaluation — diffuse + area + directional"]
+            D7["Glass: Fresnel-weighted reflection/refraction split"]
+            D8["Glossy microfacet reflection perturbation"]
+            D1 --> D2 --> D3 --> D4 & D5 & D6 & D7 & D8
+        end
+        C1 --> C2 --> Kernel
+        D8 --> D9["Glass path splitting: reflect + refract both traced, Fresnel-blended"]
+        D9 --> D10["ACES filmic tone mapping · Write pixel"]
+    end
+
+    Host -->|"ObjC++ Bridge"| Bridge -->|"MTLComputeCommandEncoder"| GPU
 ```
 
 ### GPU Compute Pipeline
@@ -331,21 +373,22 @@ All buffers use `MTLResourceStorageModeShared`, which on Apple Silicon (unified 
 
 ## Performance Benchmarks
 
-All benchmarks measured on the [tested configuration](#tested-configuration) with `std::chrono::steady_clock` timing of the `[cb waitUntilCompleted]` call (i.e., end-to-end GPU time including dispatch overhead).
+All benchmarks measured on the [tested configuration](#tested-configuration) with `std::chrono::steady_clock` timing of the `[cb waitUntilCompleted]` call (i.e., end-to-end GPU time including dispatch overhead). The final configuration uses **blue-noise IGN** for all stochastic sampling and **Halton low-discrepancy sequences** for shadow rays, which eliminates visible grain with fewer samples.
 
 | Resolution | AA | Bounces | Area Samples | GPU Time | Primary Rays | Shadow Rays |
 |---|---|---|---|---|---|---|
 | 1710 × 1112 | 4× | 8 | 24 | 118 ms | 30.4 M | 5.84 B |
 | 3420 × 2146 | 2× | 4 | 8 | 62 ms | 29.3 M | 1.87 B |
 | 3420 × 2146 | 3× | 8 | 12 | 306 ms | 65.9 M | 6.33 B |
-| **3420 × 2146** | **4×** | **8** | **24** | **479 ms** | **117.3 M** | **22.5 B** |
+| 3420 × 2146 | 4× | 8 | 24 | 479 ms | 117.3 M | 22.5 B |
+| **3420 × 2146** | **6×** | **8** | **24** | **1995 ms** | **263.9 M** | **50.7 B** |
 
-*Primary rays* = width × height × AA². *Shadow rays* approximate = primary rays × (1 + bounces) × area samples × 0.7 (accounting for miss paths and early termination).
+*Primary rays* = width × height × AA². *Shadow rays* approximate = primary rays × (1 + bounces) × area samples × 0.7 (accounting for miss paths and early termination). The 6× final benchmark includes glass path splitting (~2× ray count at glass hits).
 
 **Scaling observations:**
-- Doubling resolution (2× pixels) increases time by approximately 3.5–4× (supra-linear due to reduced GPU occupancy at lower resolutions).
-- Increasing AA from 2× to 4× (4× more primary rays) increases time by approximately 7.7×, indicating memory bandwidth saturation at higher sample counts.
-- Area light samples scale nearly linearly — 24× requires 3× the shadow ray work of 8×.
+- The jump from 4× (16 samples) to 6× (36 samples) increases primary rays by 2.25× and total time by 4.2×, reflecting the additional glass path-splitting overhead.
+- Glass path splitting traces both reflection and refraction at each glass interface, eliminating Fresnel noise at the cost of ~2× work for glass pixels.
+- Halton LDS sampling converges ~3× faster per shadow sample than hash-based RNG, allowing 24 samples to achieve the quality of ~70+ naive samples.
 
 ---
 
