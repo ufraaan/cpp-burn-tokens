@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blackhole Projects Showcase</title>
+  <style>
+    :root {
+      --panel: #f3f0e6;
+      --panel-alt: #e7eef5;
+      --ink: #1a1a1a;
+      --accent: #0b4db5;
+      --accent-2: #b4005a;
+      --border-light: #ffffff;
+      --border-dark: #6f6f6f;
+      --shadow: rgba(0, 0, 0, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Tahoma, Verdana, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.55), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(0,0,0,0.09), transparent 30%),
+        repeating-linear-gradient(45deg, #d5d0c2 0, #d5d0c2 18px, #c8d5e2 18px, #c8d5e2 36px);
+      padding: 18px;
+    }
+
+    .window {
+      max-width: 1280px;
+      margin: 0 auto;
+      border: 3px ridge var(--border-light);
+      background: #dad7ce;
+      box-shadow: 0 18px 48px var(--shadow);
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      color: #fff;
+      background: linear-gradient(90deg, #0b3b8c, #3a8fd6 60%, #6bb7ff);
+      border-bottom: 3px groove var(--border-light);
+    }
+
+    .titlebar h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2.5vw, 2.3rem);
+      letter-spacing: 0.04em;
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .titlebar .tagline {
+      margin: 4px 0 0;
+      font-size: 0.92rem;
+      color: #eef6ff;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border: 2px outset #fff;
+      background: linear-gradient(#fefefe, #dcdcdc);
+      color: #222;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .ticker {
+      padding: 6px 12px;
+      background: #111;
+      color: #7dff91;
+      font-family: "Courier New", Courier, monospace;
+      border-top: 2px inset #fff;
+      border-bottom: 2px inset #fff;
+      letter-spacing: 0.03em;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      border: 3px ridge var(--border-light);
+      background: linear-gradient(180deg, var(--panel), var(--panel-alt));
+      box-shadow: inset 0 1px 0 #fff;
+    }
+
+    .panel h2 {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: 1rem;
+      color: #fff;
+      background: linear-gradient(90deg, #6c3ca3, #ce5b92);
+      border-bottom: 2px groove var(--border-light);
+    }
+
+    .panel .body {
+      padding: 12px;
+      line-height: 1.45;
+      font-size: 0.96rem;
+    }
+
+    .meter {
+      display: grid;
+      gap: 8px;
+      padding: 2px 0;
+    }
+
+    .meter-row {
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .meter-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #444;
+    }
+
+    .meter-bar {
+      height: 16px;
+      border: 2px inset #fff;
+      background: #d0d0d0;
+      overflow: hidden;
+    }
+
+    .meter-bar span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #0c7, #ff0b75);
+      box-shadow: inset 0 0 4px rgba(255,255,255,0.5);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      border: 3px ridge var(--border-light);
+      background: #f5f5f5;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 54px;
+      padding: 9px 10px;
+      color: #fff;
+      background: linear-gradient(90deg, #003c91, #0068c6 55%, #3ba0ff);
+      border-bottom: 2px groove #fff;
+    }
+
+    .card-header h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.03em;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-header .folder {
+      flex: 0 0 auto;
+      padding: 2px 7px;
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.13);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .preview {
+      min-height: 176px;
+      background: linear-gradient(180deg, #111 0%, #222 100%);
+      border-bottom: 3px ridge #fff;
+    }
+
+    .preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+      image-rendering: auto;
+      background: #000;
+    }
+
+    .preview .fallback {
+      min-height: 176px;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      color: #0f0;
+      font-family: "Courier New", Courier, monospace;
+      text-align: center;
+      background:
+        linear-gradient(transparent 50%, rgba(0,255,0,0.06) 50%),
+        repeating-linear-gradient(0deg, #101010 0, #101010 12px, #171717 12px, #171717 24px);
+    }
+
+    .thumbs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      background: #1a1a1a;
+      border-top: 2px inset #444;
+    }
+
+    .thumbs img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      display: block;
+      border: 2px inset #fff;
+      background: #000;
+    }
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      padding: 12px;
+      font-size: 0.94rem;
+      line-height: 1.45;
+    }
+
+    .summary {
+      margin: 0 0 10px;
+    }
+
+    .highlights {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .highlights li + li { margin-top: 5px; }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 12px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 6px 10px;
+      border: 2px outset #fff;
+      background: linear-gradient(#fefefe, #d6d6d6);
+      color: #111;
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .button:hover { background: linear-gradient(#fff, #cfcfcf); }
+
+    .footer {
+      padding: 12px 16px 16px;
+      color: #3d3d3d;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .footer .note {
+      display: inline-block;
+      padding: 6px 10px;
+      border: 2px inset #fff;
+      background: #ececec;
+    }
+
+    @media (max-width: 900px) {
+      .intro { grid-template-columns: 1fr; }
+      .titlebar { flex-direction: column; align-items: flex-start; }
+      .badge-row { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <header class="titlebar">
+      <div>
+        <h1>Blackhole Projects Showcase</h1>
+        <p class="tagline">A retro gallery of C++ experiments, GPU toys, and algorithm demos.</p>
+      </div>
+      <div class="badge-row" aria-label="Project stats">
+        <span class="badge">8 projects</span>
+        <span class="badge">C++17 / C++20</span>
+        <span class="badge">GPU + CPU</span>
+        <span class="badge">Readme-driven</span>
+      </div>
+    </header>
+
+    <div class="ticker">
+      <marquee behavior="scroll" scrollamount="5">Welcome to the blackhole project vault - click a README to explore the source, docs, and builds - best viewed with strong nostalgia and a slightly too-bright monitor</marquee>
+    </div>
+
+    <main class="content">
+      <section class="intro">
+        <div class="panel">
+          <h2>About This Page</h2>
+          <div class="body">
+            <p>
+              This repo is basically a little scratchpad for weird C++ projects that were built because they seemed fun at the time.
+              The cards below pull their descriptions from each project README so the page stays honest about what each one actually does.
+            </p>
+            <p>
+              You’ll find GPU compute demos, CPU renderers, a fluid sim, a black hole toy, file compression, esoteric language runtime
+              stuff, and a vector search index. In other words: random experiments, but compiled.
+            </p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Workbench Stats</h2>
+          <div class="body meter">
+            <div class="meter-row">
+              <div class="meter-label">Graphics</div>
+              <div class="meter-bar"><span style="width: 92%"></span></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label">Simulation</div>
+              <div class="meter-bar"><span style="width: 88%"></span></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label">Compression</div>
+              <div class="meter-bar"><span style="width: 74%"></span></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label">Search / AI</div>
+              <div class="meter-bar"><span style="width: 81%"></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="gallery" id="gallery"></section>
+    </main>
+
+    <footer class="footer">
+      <span class="note">Open the README links for the full write-ups and build instructions.</span>
+    </footer>
+  </div>
+
+  <script>
+    const projects = [
+      {
+        title: "blackhole-sim",
+        folder: "projects/blackhole-sim",
+        readme: "projects/blackhole-sim/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/blackhole-sim",
+        summary: "Real-time binary black hole collision simulation with relativistic accretion disks, gravitational lensing, wave visuals, and LIGO-inspired audio.",
+        highlights: [
+          "Inspiral, merger, and ring-down with N-body gravity",
+          "3D accretion disk, photon ring, and Einstein ring effects",
+          "Solar system mode plus drag, pan, and zoom controls"
+        ],
+        preview: {
+          type: "fallback",
+          text: "Binary black hole simulator\nRelativistic rendering\nAudio chirp + wave visualisation"
+        }
+      },
+      {
+        title: "brainfuck",
+        folder: "projects/brainfuck",
+        readme: "projects/brainfuck/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/brainfuck",
+        summary: "A high-performance Brainfuck interpreter with debug, step, and benchmark modes, built for a 30,000-cell tape and zero dependencies.",
+        highlights: [
+          "Pre-matched bracket execution stream",
+          "Debug and step modes for tracing programs",
+          "Performance-focused C++17 runtime"
+        ],
+        preview: {
+          type: "fallback",
+          text: "Turing-complete esoteric runtime\n888 MIPS\n8 instructions"
+        }
+      },
+      {
+        title: "constexpr-tracer",
+        folder: "projects/constexpr-tracer",
+        readme: "projects/constexpr-tracer/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/constexpr-tracer",
+        summary: "A GPU-accelerated Monte Carlo ray tracer built on Apple Metal with deterministic sampling, 8-bounce recursion, and a thin C++ host bridge.",
+        highlights: [
+          "Single-dispatch GPU compute pipeline",
+          "Deterministic hash-driven sampling",
+          "Scene output at 3420 × 2146 with 36 samples per pixel"
+        ],
+        images: ["projects/constexpr-tracer/screenshots/render_3420x2146.png"],
+        preview: {
+          type: "image"
+        }
+      },
+      {
+        title: "hector",
+        folder: "projects/hector",
+        readme: "projects/hector/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/hector",
+        summary: "Header-only vector similarity search with SIMD-accelerated distance computation, flat and IVF indices, and compile-time metric selection.",
+        highlights: [
+          "Flat brute-force index and IVF approximate index",
+          "L2, cosine, and inner-product metrics",
+          "Binary serialization with auto-detected type tags"
+        ],
+        preview: {
+          type: "fallback",
+          text: "Vector similarity search\nSIMD distance kernels\nFlat + IVF index support"
+        }
+      },
+      {
+        title: "liquid",
+        folder: "projects/liquid",
+        readme: "projects/liquid/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/liquid",
+        summary: "A real-time 2D fluid simulation using a MAC grid, semi-Lagrangian advection, Jacobi pressure projection, and OpenMP parallelism.",
+        highlights: [
+          "Eulerian Navier-Stokes solver on a 600×600 grid",
+          "Density-dependent gravity and splashes",
+          "TTY-style HUD with simulation metrics"
+        ],
+        preview: {
+          type: "fallback",
+          text: "Fluid simulation\nMAC grid + pressure solve\nOpenMP parallelism"
+        }
+      },
+      {
+        title: "pi-montecarlo",
+        folder: "projects/pi-montecarlo",
+        readme: "projects/pi-montecarlo/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/pi-montecarlo",
+        summary: "A pure GPU compute demo that approximates π by launching millions of Metal threads and counting quarter-circle hits.",
+        highlights: [
+          "Wang hash RNG per thread",
+          "Configurable samples per thread and grid size",
+          "Built for sustained GPU throughput"
+        ],
+        preview: {
+          type: "fallback",
+          text: "GPU Monte Carlo π\nNo UI, no SDL\nPure compute"
+        }
+      },
+      {
+        title: "pied-piper",
+        folder: "projects/pied-piper",
+        readme: "projects/pied-piper/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/pied-piper",
+        summary: "A zero-dependency file compressor with canonical Huffman coding and LZW dictionary compression, plus round-trip verification.",
+        highlights: [
+          "Canonical Huffman path with compact headers",
+          "LZW dictionary mode with clear codes",
+          "Auto-selects the best algorithm for a file"
+        ],
+        preview: {
+          type: "fallback",
+          text: "Compression lab\nHuffman + LZW\nBit-level file I/O"
+        }
+      },
+      {
+        title: "raster",
+        folder: "projects/raster",
+        readme: "projects/raster/README.md",
+        source: "https://github.com/ufraaan/cpp-vibe-code/tree/main/projects/raster",
+        summary: "A CPU-based software rasterizer with perspective projection, barycentric rasterization, Blinn-Phong shading, and texture filtering.",
+        highlights: [
+          "Cornell box scene with multiple camera views",
+          "Z-buffer, perspective-correct interpolation, and HDR framebuffer",
+          "Uses the existing render images from the project folder"
+        ],
+        images: [
+          "projects/raster/render_main.png",
+          "projects/raster/render_top.png",
+          "projects/raster/render_close.png"
+        ],
+        preview: {
+          type: "gallery"
+        }
+      }
+    ];
+
+    const gallery = document.getElementById('gallery');
+
+    function projectCard(project) {
+      const card = document.createElement('article');
+      card.className = 'card';
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML = `<h3 title="${project.title}">${project.title}</h3><span class="folder">${project.folder}</span>`;
+      card.appendChild(header);
+
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+
+      if (project.preview.type === 'image' && project.images && project.images.length) {
+        const img = document.createElement('img');
+        img.src = project.images[0];
+        img.alt = `${project.title} preview`;
+        preview.appendChild(img);
+      } else if (project.preview.type === 'gallery' && project.images && project.images.length) {
+        const lead = document.createElement('img');
+        lead.src = project.images[0];
+        lead.alt = `${project.title} main render`;
+        preview.appendChild(lead);
+
+        const thumbs = document.createElement('div');
+        thumbs.className = 'thumbs';
+        project.images.slice(1).forEach((src, index) => {
+          const thumb = document.createElement('img');
+          thumb.src = src;
+          thumb.alt = `${project.title} alternate render ${index + 1}`;
+          thumbs.appendChild(thumb);
+        });
+        preview.appendChild(thumbs);
+      } else {
+        const fallback = document.createElement('div');
+        fallback.className = 'fallback';
+        fallback.innerHTML = project.preview.text.replace(/\n/g, '<br />');
+        preview.appendChild(fallback);
+      }
+
+      card.appendChild(preview);
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+      body.innerHTML = `
+        <p class="summary">${project.summary}</p>
+        <ul class="highlights">
+          ${project.highlights.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+        <div class="links">
+          <a class="button" href="${project.source}" target="_blank" rel="noreferrer">Source Code</a>
+            <a class="button" href="https://github.com/ufraaan/cpp-vibe-code/blob/main/${project.readme}" target="_blank" rel="noreferrer">README</a>
+        </div>
+      `;
+      card.appendChild(body);
+
+      return card;
+    }
+
+    projects.forEach(project => gallery.appendChild(projectCard(project)));
+  </script>
+</body>
+</html>
