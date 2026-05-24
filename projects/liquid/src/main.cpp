@@ -355,18 +355,18 @@ public:
                 hx /= hlen; hy /= hlen; hz /= hlen;
                 float spec = std::pow(std::max(0.0f, nx * hx + ny * hy + nz * hz), 16.0f);
 
-                float ambient = 0.25f;
-                float light = std::min(ambient + diff * 0.75f + spec * 0.5f, 1.0f);
+                float ambient = 0.45f;
+                float light = ambient + diff * 0.55f + spec * 0.3f;
 
                 // Base color from hue: 0=red, 0.5=purple, 1=blue
                 float hue_val = sol.hue[sol.IX(gi, gj)];
-                float r = (180.0f * (1.0f - hue_val) + 30.0f * hue_val) / 255.0f;
-                float g = (40.0f * (1.0f - hue_val) + 60.0f * hue_val) / 255.0f;
-                float b = (50.0f * (1.0f - hue_val) + 200.0f * hue_val) / 255.0f;
+                float base_r = 200.0f * (1.0f - hue_val) + 60.0f * hue_val;
+                float base_g = 50.0f  * (1.0f - hue_val) + 80.0f * hue_val;
+                float base_b = 60.0f  * (1.0f - hue_val) + 230.0f * hue_val;
 
-                Uint8 pr = (Uint8)std::min(255.0f, r * light * 255.0f + spec * 200.0f);
-                Uint8 pg = (Uint8)std::min(255.0f, g * light * 255.0f + spec * 200.0f);
-                Uint8 pb = (Uint8)std::min(255.0f, b * light * 255.0f + spec * 200.0f);
+                Uint8 pr = (Uint8)std::min(255.0f, base_r * light + spec * 180.0f);
+                Uint8 pg = (Uint8)std::min(255.0f, base_g * light + spec * 180.0f);
+                Uint8 pb = (Uint8)std::min(255.0f, base_b * light + spec * 180.0f);
                 Uint8 pa = (Uint8)(std::min(d / 0.12f, 1.0f) * 255);
 
                 m_pix[j * m_texW + i] = (pa << 24) | (pr << 16) | (pg << 8) | pb;
