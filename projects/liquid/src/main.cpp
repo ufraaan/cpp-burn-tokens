@@ -316,10 +316,14 @@ int main() {
     if (!font) font = TTF_OpenFont("/System/Fonts/PingFang.ttc", 13);
 
     FluidSolver sol(N);
-    float gravity = 6.0f;
+    float gravity = 4.0f;
 
     // Initial water blob
-    sol.addDensity(N/2, N/3, 1.0f, 14);
+    sol.addDensity(N/2, N/4, 1.0f, 14);
+    // Pool at bottom so falling water stays visible
+    for (int i = N/3; i <= 2*N/3; i++)
+        for (int j = N - 12; j <= N; j++)
+            sol.addDensity(i, j, 0.4f, 8);
 
     // Renderer at 2x grid resolution for smoother display
     Renderer rend(ren, N, N * 2, N * 2);
@@ -327,7 +331,8 @@ int main() {
     HUD fpsHUD(ren, font);
     HUD infoHUD(ren, font);
     HUD ctrlHUD(ren, font);
-    fpsHUD.setText("FPS: --  Particles: 0");
+    HUD gravHUD(ren, font);
+    fpsHUD.setText("FPS: --");
     infoHUD.setText("Liquid — Eulerian Navier-Stokes Fluid");
     ctrlHUD.setText("Click+Drag = Stir    Space = Splash    R = Reset    G = Gravity");
 
@@ -347,13 +352,16 @@ int main() {
                     case SDLK_ESCAPE: run = false; break;
                     case SDLK_r:
                         sol.reset();
-                        sol.addDensity(N/2, N/3, 1.0f, 14);
+                        sol.addDensity(N/2, N/4, 1.0f, 14);
+                        for (int i = N/3; i <= 2*N/3; i++)
+                            for (int j = N - 12; j <= N; j++)
+                                sol.addDensity(i, j, 0.4f, 8);
                         break;
                     case SDLK_SPACE:
                         sol.addDensity(N/2 - 12 + rand()%24, N/6, 1.0f, 10);
                         break;
                     case SDLK_g:
-                        gravity = (gravity == 0) ? 6.0f : 0.0f;
+                        gravity = (gravity == 0) ? 4.0f : 0.0f;
                         break;
                     default: break;
                 }
@@ -388,13 +396,13 @@ int main() {
         rend.present(sol, PAD, PAD, CONT_W, CONT_H);
 
         // Draw HUD text
-        int totalDrops = 0;
-        for (float d : sol.dens) if (d > 0.05f) totalDrops++;
-
         char buf[100];
-        std::snprintf(buf, sizeof(buf), "FPS: %d  Fluid density cells: %d", fps, totalDrops);
+        std::snprintf(buf, sizeof(buf), "FPS: %d", fps);
         fpsHUD.setText(buf);
         fpsHUD.draw(PAD, 6);
+
+        gravHUD.setText(gravity > 0 ? "Gravity: ON" : "Gravity: OFF");
+        gravHUD.draw(WIN_W - PAD - 100, 6);
 
         ctrlHUD.draw(PAD, WIN_H - 28);
 
