@@ -72,6 +72,25 @@ public:
         }
     }
 
+    void addSplash(int cx, int cy, float intensity) {
+        int r = 15;
+        addDensity(cx, cy, intensity, r);
+        for (int j = -r; j <= r; j++) {
+            for (int i = -r; i <= r; i++) {
+                int gx = cx + i, gy = cy + j;
+                if (gx < 1 || gx > N || gy < 1 || gy > N) continue;
+                float dist = std::sqrt(i*i + j*j);
+                if (dist > r || dist < 1.0f) continue;
+                float strength = 60.0f * (1.0f - dist / r);
+                float angle = std::atan2(j - 3, i) + ((rand() % 200) - 100) * 0.008f;
+                u[IX(gx, gy)] += std::cos(angle) * strength;
+                v[IX(gx, gy)] += std::sin(angle) * strength;
+                if (dist > r * 0.35f && (rand() % 4 == 0))
+                    dens[IX(gx, gy)] += 0.4f * (1.0f - dist / r);
+            }
+        }
+    }
+
     void step(float gravity) {
         // 1. Gravity — only where water exists
         #pragma omp parallel for collapse(2)
@@ -401,7 +420,7 @@ int main() {
                         sol.addDensity(N/2, N/4, 1.0f, 14);
                         break;
                     case SDLK_SPACE:
-                        sol.addDensity(N/2 - 12 + rand()%24, N/6, 1.0f, 10);
+                        sol.addSplash(N/2 - 12 + rand()%24, N/6, 1.0f);
                         break;
                     case SDLK_g:
                         gravity = (gravity == 0) ? 2.0f : 0.0f;
