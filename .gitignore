@@ -1,5 +1,6 @@
-projects/*/voxel
 projects/*/bhs
+projects/*/form
+projects/*/voxel
 *.o
 *.dSYM/
 .DS_Store
