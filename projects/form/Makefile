@@ -1,10 +1,10 @@
 CXX      := g++
-CXXFLAGS := -std=c++17 -O2 -I/opt/homebrew/include -Isrc
-LDFLAGS  := -L/opt/homebrew/lib -lSDL2 -framework OpenGL -framework Cocoa
+CXXFLAGS := -std=c++17 -O3 -march=native -ffast-math -I/opt/homebrew/include -Isrc
+LDFLAGS  := -L/opt/homebrew/lib -lSDL2 -pthread
 
-SRCS     := src/main.cpp src/terrain.cpp
+SRCS     := src/main.cpp
 OBJS     := $(SRCS:.cpp=.o)
-TARGET   := voxel
+TARGET   := form
 
 .PHONY: all clean
 
