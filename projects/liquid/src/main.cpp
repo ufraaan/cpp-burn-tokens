@@ -60,10 +60,11 @@ public:
     }
 
     void step(float gravity) {
-        // 1. Gravity
+        // 1. Gravity — only where water exists so empty air cells don't
+        //    accelerate downward. Creates natural hydrostatic pressure.
         for (int j = 1; j <= N; j++)
             for (int i = 1; i <= N; i++)
-                v[IX(i, j)] += gravity * dt;
+                v[IX(i, j)] += gravity * dt * std::min(dens[IX(i, j)], 1.0f);
 
         // 2. Advect velocity
         advect(u_prev.data(), u.data(), u.data(), v.data(), dt);
@@ -80,10 +81,15 @@ public:
         // 4. Project
         project(u.data(), v.data(), p.data(), div.data());
 
-        // 5. Advect density with reflective walls (water stays in container)
+        // 5. Advect density with reflective walls
         advect(dens_prev.data(), dens.data(), u.data(), v.data(), dt, true);
         std::swap(dens, dens_prev);
         setBnd(dens.data(), 0);
+
+        // 6. Cap density to prevent runaway accumulation at walls
+        for (int j = 1; j <= N; j++)
+            for (int i = 1; i <= N; i++)
+                dens[IX(i, j)] = std::min(dens[IX(i, j)], 1.0f);
     }
 
     void reset() {
@@ -136,11 +142,18 @@ private:
                 float x = i - dt * u[IX(i, j)];
                 float y = j - dt * v[IX(i, j)];
                 if (reflect) {
-                    // Reflective walls: bounce traces back into the grid
-                    if (x < 0.5f) x = 1.0f - x;
-                    else if (x > N + 0.5f) x = 2.0f * (N + 0.5f) - x;
-                    if (y < 0.5f) y = 1.0f - y;
-                    else if (y > N + 0.5f) y = 2.0f * (N + 0.5f) - y;
+                    // Iterative reflective walls: keep bouncing until inside
+                    for (int it = 0; it < 8; it++) {
+                        bool ok = true;
+                        if (x < 0.5f) { x = 1.0f - x; ok = false; }
+                        else if (x > N + 0.5f) { x = 2.0f * (N + 0.5f) - x; ok = false; }
+                        if (y < 0.5f) { y = 1.0f - y; ok = false; }
+                        else if (y > N + 0.5f) { y = 2.0f * (N + 0.5f) - y; ok = false; }
+                        if (ok) break;
+                    }
+                    // Final clamp -> ghost cells will be zeroed anyway
+                    x = std::max(0.5f, std::min(x, (float)N + 0.5f));
+                    y = std::max(0.5f, std::min(y, (float)N + 0.5f));
                 } else {
                     if (x < 0.5f) x = 0.5f;
                     if (x > N + 0.5f) x = N + 0.5f;
@@ -369,10 +382,14 @@ int main() {
                     default: break;
                 }
             }
-            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
-                { md = true; mx = e.button.x; my = e.button.y; }
-            if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                SDL_CaptureMouse(SDL_TRUE);  // capture so BUTTONUP always fires
+                md = true; mx = e.button.x; my = e.button.y;
+            }
+            if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
+                SDL_CaptureMouse(SDL_FALSE);
                 md = false;
+            }
             if (e.type == SDL_MOUSEMOTION && md) {
                 int gx = (mx - PAD) * N / CONT_W;
                 int gy = (my - PAD) * N / CONT_H;
