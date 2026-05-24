@@ -25,18 +25,22 @@
       color: var(--ink);
       font-family: Tahoma, Verdana, Arial, sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(255,255,255,0.55), transparent 32%),
-        radial-gradient(circle at bottom right, rgba(0,0,0,0.09), transparent 30%),
-        repeating-linear-gradient(45deg, #d5d0c2 0, #d5d0c2 18px, #c8d5e2 18px, #c8d5e2 36px);
+        radial-gradient(circle at top left, rgba(255,255,255,0.45), transparent 22%),
+        radial-gradient(circle at 85% 10%, rgba(255,255,255,0.18), transparent 18%),
+        radial-gradient(circle at bottom right, rgba(0,0,0,0.12), transparent 28%),
+        repeating-linear-gradient(45deg, #d8d2be 0, #d8d2be 12px, #b8cfe5 12px, #b8cfe5 24px);
       padding: 18px;
+      background-attachment: fixed;
     }
 
     .window {
       max-width: 1280px;
       margin: 0 auto;
-      border: 3px ridge var(--border-light);
-      background: #dad7ce;
-      box-shadow: 0 18px 48px var(--shadow);
+      border: 4px outset #fdfdfd;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.08)),
+        #d6d1c3;
+      box-shadow: 0 0 0 2px #646464, 0 18px 48px var(--shadow);
     }
 
     .titlebar {
@@ -44,23 +48,64 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 12px 14px;
+      padding: 13px 14px 14px;
       color: #fff;
-      background: linear-gradient(90deg, #0b3b8c, #3a8fd6 60%, #6bb7ff);
-      border-bottom: 3px groove var(--border-light);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.18), transparent 45%),
+        linear-gradient(90deg, #081c4f, #1d56aa 40%, #7dc4ff 100%);
+      border-bottom: 4px ridge var(--border-light);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    }
+
+    .chrome-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      background: linear-gradient(180deg, #f7f7f7, #cdcdcd);
+      border-bottom: 3px ridge #fff;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #333;
+    }
+
+    .chrome-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chrome-tab {
+      padding: 4px 9px;
+      border: 2px outset #fff;
+      background: linear-gradient(#ffffff, #d8d8d8);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    .chrome-status {
+      padding: 3px 8px;
+      border: 2px inset #fff;
+      background: #eef4ff;
+      color: #003a7a;
     }
 
     .titlebar h1 {
       margin: 0;
       font-size: clamp(1.6rem, 2.5vw, 2.3rem);
-      letter-spacing: 0.04em;
-      text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45);
     }
 
     .titlebar .tagline {
       margin: 4px 0 0;
-      font-size: 0.92rem;
-      color: #eef6ff;
+      font-size: 0.82rem;
+      color: #f0fbff;
+      letter-spacing: 0.02em;
     }
 
     .badge-row {
@@ -75,15 +120,17 @@
       align-items: center;
       padding: 5px 10px;
       border: 2px outset #fff;
-      background: linear-gradient(#fefefe, #dcdcdc);
-      color: #222;
+      background: linear-gradient(#ffffff, #d2d2d2);
+      color: #1d1d1d;
       font-size: 0.8rem;
       white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .ticker {
       padding: 6px 12px;
-      background: #111;
+      background: linear-gradient(180deg, #000, #222);
       color: #7dff91;
       font-family: "Courier New", Courier, monospace;
       border-top: 2px inset #fff;
@@ -103,9 +150,11 @@
     }
 
     .panel {
-      border: 3px ridge var(--border-light);
-      background: linear-gradient(180deg, var(--panel), var(--panel-alt));
-      box-shadow: inset 0 1px 0 #fff;
+      border: 4px ridge #fff;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.14)),
+        linear-gradient(180deg, var(--panel), var(--panel-alt));
+      box-shadow: inset 0 1px 0 #fff, 0 3px 0 rgba(0,0,0,0.08);
     }
 
     .panel h2 {
@@ -113,8 +162,10 @@
       padding: 10px 12px;
       font-size: 1rem;
       color: #fff;
-      background: linear-gradient(90deg, #6c3ca3, #ce5b92);
-      border-bottom: 2px groove var(--border-light);
+      background: linear-gradient(90deg, #6c3ca3, #ce5b92 60%, #ff84c4);
+      border-bottom: 3px ridge var(--border-light);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
 
     .panel .body {
@@ -140,21 +191,22 @@
       font-size: 0.82rem;
       font-weight: 700;
       text-transform: uppercase;
-      color: #444;
+      color: #37455b;
+      letter-spacing: 0.05em;
     }
 
     .meter-bar {
       height: 16px;
       border: 2px inset #fff;
-      background: #d0d0d0;
+      background: #c4c4c4;
       overflow: hidden;
     }
 
     .meter-bar span {
       display: block;
       height: 100%;
-      background: linear-gradient(90deg, #0c7, #ff0b75);
-      box-shadow: inset 0 0 4px rgba(255,255,255,0.5);
+      background: linear-gradient(90deg, #00d46a, #ffd400 55%, #ff006a);
+      box-shadow: inset 0 0 4px rgba(255,255,255,0.65);
     }
 
     .gallery {
@@ -166,9 +218,9 @@
     .card {
       display: flex;
       flex-direction: column;
-      border: 3px ridge var(--border-light);
-      background: #f5f5f5;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+      border: 4px ridge #fff;
+      background: linear-gradient(180deg, #fbfbfb, #d8d8d8);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.12), 0 10px 24px rgba(0, 0, 0, 0.16);
       overflow: hidden;
     }
 
@@ -180,8 +232,10 @@
       min-height: 54px;
       padding: 9px 10px;
       color: #fff;
-      background: linear-gradient(90deg, #003c91, #0068c6 55%, #3ba0ff);
-      border-bottom: 2px groove #fff;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16), transparent 40%),
+        linear-gradient(90deg, #102a83, #0059c7 55%, #56b4ff);
+      border-bottom: 3px ridge #fff;
     }
 
     .card-header h3 {
@@ -192,6 +246,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      text-transform: uppercase;
     }
 
     .card-header .folder {
@@ -199,7 +254,7 @@
       padding: 2px 7px;
       border: 1px solid rgba(255,255,255,0.7);
       border-radius: 999px;
-      background: rgba(255,255,255,0.13);
+      background: rgba(255,255,255,0.18);
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -207,8 +262,10 @@
 
     .preview {
       min-height: 176px;
-      background: linear-gradient(180deg, #111 0%, #222 100%);
-      border-bottom: 3px ridge #fff;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,0.12), transparent 40%),
+        linear-gradient(180deg, #101010 0%, #2a2a2a 100%);
+      border-bottom: 4px ridge #fff;
     }
 
     .preview img {
@@ -224,12 +281,12 @@
       display: grid;
       place-items: center;
       padding: 16px;
-      color: #0f0;
+      color: #7dff91;
       font-family: "Courier New", Courier, monospace;
       text-align: center;
       background:
-        linear-gradient(transparent 50%, rgba(0,255,0,0.06) 50%),
-        repeating-linear-gradient(0deg, #101010 0, #101010 12px, #171717 12px, #171717 24px);
+        linear-gradient(transparent 50%, rgba(125,255,145,0.08) 50%),
+        repeating-linear-gradient(0deg, #080808 0, #080808 12px, #151515 12px, #151515 24px);
     }
 
     .thumbs {
@@ -237,7 +294,7 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 4px;
       padding: 4px;
-      background: #1a1a1a;
+      background: #101010;
       border-top: 2px inset #444;
     }
 
@@ -257,6 +314,7 @@
       padding: 12px;
       font-size: 0.94rem;
       line-height: 1.45;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0));
     }
 
     .summary {
@@ -282,14 +340,21 @@
       display: inline-block;
       padding: 6px 10px;
       border: 2px outset #fff;
-      background: linear-gradient(#fefefe, #d6d6d6);
+      background: linear-gradient(#ffffff, #cfcfcf);
       color: #111;
       text-decoration: none;
       font-size: 0.82rem;
       font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
-    .button:hover { background: linear-gradient(#fff, #cfcfcf); }
+    .button:hover { background: linear-gradient(#fff, #e1e1e1); }
+
+    .button:active {
+      border-style: inset;
+      background: linear-gradient(#d8d8d8, #f7f7f7);
+    }
 
     .footer {
       padding: 12px 16px 16px;
@@ -301,8 +366,10 @@
     .footer .note {
       display: inline-block;
       padding: 6px 10px;
-      border: 2px inset #fff;
-      background: #ececec;
+      border: 3px inset #fff;
+      background: linear-gradient(#fefefe, #dadada);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
 
     @media (max-width: 900px) {
@@ -327,6 +394,16 @@
       </div>
     </header>
 
+    <div class="chrome-strip">
+      <div class="chrome-tabs">
+        <span class="chrome-tab">Home</span>
+        <span class="chrome-tab">Projects</span>
+        <span class="chrome-tab">Downloads</span>
+        <span class="chrome-tab">Guestbook</span>
+      </div>
+      <div class="chrome-status">Under construction since 1999</div>
+    </div>
+
     <div class="ticker">
       <marquee behavior="scroll" scrollamount="5">Welcome to the blackhole project vault - click a README to explore the source, docs, and builds - best viewed with strong nostalgia and a slightly too-bright monitor</marquee>
     </div>
@@ -337,12 +414,12 @@
           <h2>About This Page</h2>
           <div class="body">
             <p>
-              This repo is basically a little scratchpad for weird C++ projects that were built because they seemed fun at the time.
-              The cards below pull their descriptions from each project README so the page stays honest about what each one actually does.
+              This repo is basically a personal web shrine for random C++ experiments, GPU demos, and simulations that were built because
+              they looked fun in the terminal. The cards below borrow their wording from each project README so the page stays honest.
             </p>
             <p>
-              You’ll find GPU compute demos, CPU renderers, a fluid sim, a black hole toy, file compression, esoteric language runtime
-              stuff, and a vector search index. In other words: random experiments, but compiled.
+              Expect a little bit of everything: fluid sims, black holes, a Monte Carlo ray tracer, π on the GPU, file compression,
+              a Brainfuck interpreter, vector search, and a software rasterizer. It’s basically a late-90s download page for code.
             </p>
           </div>
         </div>
