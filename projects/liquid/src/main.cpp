@@ -338,7 +338,7 @@ int main() {
     std::srand(std::time(nullptr));
 
     const int WIN_W = 960, WIN_H = 960;
-    const int N = 450;
+    const int N = 900;
     const int PAD = 30;              // container padding from window edges
     const int CONT_W = WIN_W - PAD * 2;
     const int CONT_H = WIN_H - PAD * 2;
