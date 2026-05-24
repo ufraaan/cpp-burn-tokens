@@ -1,6 +1,6 @@
-# C++-vibe
+# cpp-vibe-code
 
-A curated collection of C++ simulation and visualization projects, built with modern C++17, SDL2, and OpenGL.
+just a repo i use to vibe code random shit when i'm bored. i have genuinely no idea what half of this does but it compiles so we ball.
 
 ## Projects
 

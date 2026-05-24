@@ -1,4 +1,4 @@
-# constexpr-tracer: GPU-Accelerated Monte Carlo Ray Tracer
+# constexpr-tracer: GPU-Accelerated Monte Carlo Ray Tracer (vibe-coded, do not ask me what this does)
 
 <div align="center">
 
