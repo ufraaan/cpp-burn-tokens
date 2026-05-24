@@ -30,7 +30,6 @@ int main() {
     FluidSolver sol(N);
     float gravity = 2.0f;
 
-    // Initial water blob
     sol.addDensity(N/2, N/3, 1.0f, 14);
 
     Renderer rend(ren, N, N * 2, N * 2);
@@ -85,7 +84,7 @@ int main() {
                 int ngy = (e.motion.y - PAD) * N / CONT_H;
                 if (gx >= 1 && gx <= N && gy >= 1 && gy <= N &&
                     ngx >= 1 && ngx <= N && ngy >= 1 && ngy <= N) {
-                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4, true);
+                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4);
                     sol.addVelocity(gx, gy,
                         (ngx - gx) * 60.0f, (ngy - gy) * 60.0f, 5);
                 }
