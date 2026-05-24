@@ -67,30 +67,6 @@ IVF with 32 centroids and nprobe=4:
 ./hector query --index index.ivf --k 10 --nprobe 4 < queries.bin
 ```
 
-### IVF query pipeline
-
-This is the query-time path used by the CLI and IVF index implementation:
-
-```mermaid
-flowchart LR
-    A["hector query\n--index FILE --k N\n--nprobe M (default 1)"] --> B["Open serialized index"]
-    B --> C["Read 4-byte tag\n3/4/5 = IVF + metric"]
-    C --> D["Dispatch to index_ivf<Metric>::load()"]
-    D --> E["Deserialize metadata\ndims, nlist, n_vectors"]
-    E --> F["Load centroids, inverted lists,\nraw vectors, and ids"]
-    F --> G["Recompute nearest centroid assignment\nfor each stored vector"]
-    G --> H["For each query vector"]
-    H --> I["Compute distance to every centroid"]
-    I --> J["Sort centroids by distance"]
-    J --> K["Probe top nprobe centroids\nclamped to min(nprobe, nlist)"]
-    K --> L["Scan each probed inverted list"]
-    L --> M["Decode vector id and compute\nquery-to-candidate distance"]
-    M --> N["Collect candidate distance/id pairs"]
-    N --> O["Select top-k with nth_element"]
-    O --> P["Sort final results by distance"]
-    P --> Q["Emit CSV rows\nquery_idx,rank,dist,id"]
-```
-
 ## API
 
 ```cpp
@@ -124,4 +100,31 @@ include/hector/
 └── index_ivf.hpp     # IVF index with k-means++
 src/
 └── main.cpp          # CLI — build, query
+```
+
+### IVF query pipeline
+
+This is the query-time path used by the CLI and IVF index implementation:
+
+```mermaid
+flowchart TD
+    A["hector query\n--index FILE --k N\n--nprobe M"] --> B["Open serialized index"]
+    B --> C["Read 4-byte tag\n3/4/5 = IVF + metric"]
+    C --> D["Dispatch to index_ivf<Metric>::load()"]
+    D --> E["Deserialize metadata\ndims, nlist, n_vectors"]
+    E --> F["Load centroids, inverted lists,\nraw vectors, and ids"]
+    F --> G["Recompute nearest centroid assignment\nfor each stored vector"]
+```
+
+```mermaid
+flowchart TD
+    H["For each query vector"] --> I["Compute distance to every centroid"]
+    I --> J["Sort centroids by distance"]
+    J --> K["Probe top nprobe centroids\nclamped to min(nprobe, nlist)"]
+    K --> L["Scan each probed inverted list"]
+    L --> M["Decode vector id and compute\nquery-to-candidate distance"]
+    M --> N["Collect candidate distance/id pairs"]
+    N --> O["Select top-k with nth_element"]
+    O --> P["Sort final results by distance"]
+    P --> Q["Emit CSV rows\nquery_idx,rank,dist,id"]
 ```
