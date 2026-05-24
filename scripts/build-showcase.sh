@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p dist
+npx --yes html-minifier-terser \
+  index.html \
+  -o dist/index.html \
+  --collapse-whitespace \
+  --remove-comments \
+  --remove-redundant-attributes \
+  --remove-script-type-attributes \
+  --remove-style-link-type-attributes \
+  --minify-css true \
+  --minify-js true
+cp -R projects dist/

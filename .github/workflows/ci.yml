@@ -19,20 +19,7 @@ jobs:
           node-version: 20
 
       - name: Build obfuscated bundle
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          npx --yes html-minifier-terser \
-            index.html \
-            -o dist/index.html \
-            --collapse-whitespace \
-            --remove-comments \
-            --remove-redundant-attributes \
-            --remove-script-type-attributes \
-            --remove-style-link-type-attributes \
-            --minify-css true \
-            --minify-js true
-          cp -R projects dist/
+        run: bash scripts/build-showcase.sh
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
