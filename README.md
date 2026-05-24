@@ -35,6 +35,34 @@ Real-time black hole collision simulation with N-body gravity, 3D accretion disk
 
 ---
 
+### [constexpr-tracer](./projects/constexpr-tracer)
+
+A GPU-accelerated ray tracer powered by Metal compute shaders. All rendering runs on your GPU at native display resolution, delivering production-quality results in under half a second.
+
+**Features:**
+- 8 spheres with diverse materials: matte, metallic, **chrome**, **glass**, **golden**, **glossy**
+- **Glass sphere** with Schlick Fresnel, Snell refraction, total internal reflection, Beer's law absorption
+- **4×4 supersampled anti-aliasing** (16 rays/pixel) for sub-pixel smoothness
+- **Rectangular area light** with 24× soft shadow sampling, inverse-square falloff
+- **Depth of field** with aperture disk sampling and focal distance
+- **Glossy microfacet reflections** with configurable roughness per material
+- **Checkerboard ground plane** with reflections visible in every sphere
+- **ACES filmic tone mapping** for proper color grading
+- Up to **8 recursive bounces** for complex light paths
+- **Metadata HUD overlay** (Blender-style render stamp) with resolution, settings, and render time
+- Renders at **native Retina resolution** (3420×2146 on M5 MacBook Air) in ~480 ms
+- Completely deterministic — no random seed variance, same output every run
+
+**Controls:** `Esc` Quit
+
+**Build:**
+```bash
+cd projects/constexpr-tracer
+make && ./cpptracer
+```
+
+---
+
 ## Building
 
 Each project has its own `Makefile`. From the project directory:
@@ -44,4 +72,4 @@ cd projects/liquid
 make && ./liquid
 ```
 
-**Dependencies:** SDL2 (install via Homebrew: `brew install sdl2`). Some projects may also require `sdl2_ttf`.
+**Dependencies:** SDL2 + SDL2_ttf (install via Homebrew: `brew install sdl2 sdl2_ttf`). The constexpr-tracer additionally requires the Metal and Foundation frameworks (included with macOS).

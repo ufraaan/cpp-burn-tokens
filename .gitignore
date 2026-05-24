@@ -1,5 +1,7 @@
 projects/*/bhs
 projects/*/liquid
+projects/*/cpptracer
 *.o
 *.dSYM/
 .DS_Store
+*.pch
