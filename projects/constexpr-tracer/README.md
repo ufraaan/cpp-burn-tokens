@@ -10,7 +10,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](https://www.apple.com/macos)
 [![GPU](https://img.shields.io/badge/GPU-M5%2010--core-orange)]()
 
-*Render time: **479 ms** · Resolution: **3420 × 2146** · Samples: **16 per pixel** · Bounces: **8***
+*Render time: **1995 ms** · Resolution: **3420 × 2146** · Samples: **36 per pixel** · Bounces: **8***
 
 </div>
 
@@ -46,6 +46,12 @@
 
 `constexpr-tracer` is a physically-based GPU ray tracer implemented entirely as an **Apple Metal compute shader** with a thin C++/Objective-C++ host bridge. The rendering engine executes on the GPU as a single dispatch of parallel ray tracing kernels — one thread per pixel, each tracing up to 8 recursive bounces with deterministic Monte Carlo sampling.
 
+<div align="center">
+  <img src="./screenshots/render_3420x2146.png" alt="Render output at 3420×2146 with 6×6 AA, glass sphere, area light, DOF" width="90%"/>
+  <br/>
+  <em>Output render at 3420 × 2146 native Retina resolution. Scene contains 8 spheres (matte, metallic, chrome, glass, glossy), checkerboard ground plane, rectangular area light (24× Halton soft shadows), and depth of field.</em>
+</div>
+
 The system was designed with the following principles:
 
 - **Determinism**: Every render is bit-identical across runs. Random sampling is replaced by a hash-based deterministic RNG keyed on pixel coordinates, bounce depth, and sub-sample index.
@@ -61,14 +67,14 @@ Each pixel's final colour is the average of **16 stratified sub-samples** (4 × 
 
 ### Ray Generation & Anti-Aliasing
 
-Primary rays are generated from a pinhole camera model with stratified supersampling. For a pixel at coordinates $(x, y)$, the $N_\text{AA} \times N_\text{AA}$ stratified samples are:
+Primary rays are generated from a pinhole camera model with stratified supersampling. For a pixel at coordinates $(x, y)$, the $N_\mathrm{AA} \times N_\mathrm{AA}$ stratified samples are:
 
 ```math
-u_{ij} = \frac{x + \frac{i + 0.5}{N_\text{AA}}}{W}, \quad
-v_{ij} = \frac{y + \frac{j + 0.5}{N_\text{AA}}}{H}
+u_{ij} = \frac{x + \frac{i + 0.5}{N_\mathrm{AA}}}{W}, \quad
+v_{ij} = \frac{y + \frac{j + 0.5}{N_\mathrm{AA}}}{H}
 ```
 
-with $N_\text{AA} = 4$. These are mapped to world-space ray directions via the camera model:
+with $N_\mathrm{AA} = 4$. These are mapped to world-space ray directions via the camera model:
 
 ```math
 p_x = (2u - 1) \cdot A \cdot F, \quad
@@ -83,12 +89,12 @@ where $A = W/H$ is the aspect ratio and $F = 0.7$ is the vertical field-of-view 
 A thin-lens camera model is implemented by perturbing the ray origin on a disk of radius $a = 0.018$ (aperture radius) and redirecting toward the focal plane at distance $d_f = 6.0$:
 
 ```math
-\mathbf{p}_\text{lens} = \mathbf{p}_\text{cam} + \delta_x \hat{\mathbf{x}} + \delta_y \hat{\mathbf{y}}, \quad
-\mathbf{p}_\text{focal} = \mathbf{p}_\text{cam} + \mathbf{r}_d \cdot d_f
+\mathbf{p}_\mathrm{lens} = \mathbf{p}_\mathrm{cam} + \delta_x \hat{\mathbf{x}} + \delta_y \hat{\mathbf{y}}, \quad
+\mathbf{p}_\mathrm{focal} = \mathbf{p}_\mathrm{cam} + \mathbf{r}_d \cdot d_f
 ```
 
 ```math
-\mathbf{r}'_d = \frac{\mathbf{p}_\text{focal} - \mathbf{p}_\text{lens}}{\|\mathbf{p}_\text{focal} - \mathbf{p}_\text{lens}\|}
+\mathbf{r}'_d = \frac{\mathbf{p}_\mathrm{focal} - \mathbf{p}_\mathrm{lens}}{\|\mathbf{p}_\mathrm{focal} - \mathbf{p}_\mathrm{lens}\|}
 ```
 
 The lens offset $(\delta_x, \delta_y)$ is computed via the **concentric disk mapping** of Shirley \& Chiu [^1] to ensure uniform sampling of the aperture without distortion.
@@ -106,9 +112,9 @@ c = \|\mathbf{oc}\|^2 - r^2
 ```math
 \Delta = b^2 - c, \quad
 t = \begin{cases}
--b - \sqrt{\Delta} & \text{if } -b - \sqrt{\Delta} > \varepsilon \\
--b + \sqrt{\Delta} & \text{if } -b + \sqrt{\Delta} > \varepsilon \\
--1 & \text{otherwise}
+-b - \sqrt{\Delta} & \mathrm{if } -b - \sqrt{\Delta} > \varepsilon \\
+-b + \sqrt{\Delta} & \mathrm{if } -b + \sqrt{\Delta} > \varepsilon \\
+-1 & \mathrm{otherwise}
 \end{cases}
 ```
 
@@ -116,16 +122,16 @@ The near intersection is always preferred. If the ray origin is inside the spher
 
 ### Area Light Sampling
 
-A rectangular area light source is defined by its centre $\mathbf{p}_l$, half-extent vectors $\mathbf{u}_l, \mathbf{v}_l$, and emitted radiance $\mathbf{L}_e$. At each surface hit point $\mathbf{p}$, $N_\text{area} = 24$ shadow rays are traced toward random points on the light:
+A rectangular area light source is defined by its centre $\mathbf{p}_l$, half-extent vectors $\mathbf{u}_l, \mathbf{v}_l$, and emitted radiance $\mathbf{L}_e$. At each surface hit point $\mathbf{p}$, $N_\mathrm{area} = 24$ shadow rays are traced toward random points on the light:
 
 ```math
-\mathbf{p}_\text{sample} = \mathbf{p}_l + \mathbf{u}_l (2\xi_1 - 1) + \mathbf{v}_l (2\xi_2 - 1)
+\mathbf{p}_\mathrm{sample} = \mathbf{p}_l + \mathbf{u}_l (2\xi_1 - 1) + \mathbf{v}_l (2\xi_2 - 1)
 ```
 
 where $\xi_1, \xi_2$ are deterministic hash-sampled variates (see [Deterministic Sampling](#deterministic-sampling)). The Monte Carlo estimator for the area light contribution is:
 
 ```math
-\mathbf{L}_\text{area} = \frac{\mathbf{L}_e A_l}{N_\text{area}} \sum_{k=1}^{N_\text{area}} \frac{V_k \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_k)^+ \cdot (\mathbf{n}_l \cdot (-\boldsymbol{\omega}_k))^+}{\|\mathbf{p}_\text{sample} - \mathbf{p}\|^2}
+\mathbf{L}_\mathrm{area} = \frac{\mathbf{L}_e A_l}{N_\mathrm{area}} \sum_{k=1}^{N_\mathrm{area}} \frac{V_k \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_k)^+ \cdot (\mathbf{n}_l \cdot (-\boldsymbol{\omega}_k))^+}{\|\mathbf{p}_\mathrm{sample} - \mathbf{p}\|^2}
 ```
 
 where $A_l = 4\|\mathbf{u}_l\|\|\mathbf{v}_l\|$ is the light area, $V_k$ is the binary visibility (shadow test), $\boldsymbol{\omega}_k$ is the unit direction from $\mathbf{p}$ to the sample point, and $\mathbf{n}_l$ is the light normal. The geometric cosine term for the light's orientation ensures proper weighting for off-axis samples.
@@ -133,7 +139,7 @@ where $A_l = 4\|\mathbf{u}_l\|\|\mathbf{v}_l\|$ is the light area, $V_k$ is the 
 A secondary directional light with a single shadow ray provides fill lighting and specular highlights:
 
 ```math
-\mathbf{L}_\text{dir} = \mathbf{c}_s \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_l)^+ \cdot V \cdot \mathbf{L}_d
+\mathbf{L}_\mathrm{dir} = \mathbf{c}_s \cdot (\mathbf{n} \cdot \boldsymbol{\omega}_l)^+ \cdot V \cdot \mathbf{L}_d
 ```
 
 with a Blinn-Phong specular lobe of exponent $n_s = 64$.
@@ -176,15 +182,15 @@ T = \eta \, \mathbf{r}_d + (\eta \cos\theta_i - \cos\theta_t) \, \mathbf{n}
 \boldsymbol{\tau} = \exp\left(-\boldsymbol{\sigma}_a \cdot d\right)
 ```
 
-where $\boldsymbol{\sigma}_a = (1 - \mathbf{c}_\text{glass}) \cdot 0.3$ is the absorption coefficient derived from the glass colour, and $d$ is the internal chord length.
+where $\boldsymbol{\sigma}_a = (1 - \mathbf{c}_\mathrm{glass}) \cdot 0.3$ is the absorption coefficient derived from the glass colour, and $d$ is the internal chord length.
 
 ### Glossy Microfacet Reflections
 
 Reflective surfaces with $\alpha > 0$ perturb the perfect specular reflection direction by a random offset on a disk of radius $\alpha$:
 
 ```math
-\mathbf{r}_\text{refl} = \text{reflect}(\mathbf{r}_d, \mathbf{n}), \quad
-\mathbf{r}'_\text{refl} = \frac{\mathbf{r}_\text{refl} + \delta_x \mathbf{u}_\perp + \delta_y \mathbf{v}_\perp}{\|\cdots\|}
+\mathbf{r}_\mathrm{refl} = \mathrm{reflect}(\mathbf{r}_d, \mathbf{n}), \quad
+\mathbf{r}'_\mathrm{refl} = \frac{\mathbf{r}_\mathrm{refl} + \delta_x \mathbf{u}_\perp + \delta_y \mathbf{v}_\perp}{\|\cdots\|}
 ```
 
 where $\mathbf{u}_\perp, \mathbf{v}_\perp$ span an orthonormal basis around the reflection direction, and $(\delta_x, \delta_y)$ is a concentric-disk sample. This models a microfacetted surface with roughness parameter $\alpha$ controlling the width of the specular lobe.
@@ -194,7 +200,7 @@ where $\mathbf{u}_\perp, \mathbf{v}_\perp$ span an orthonormal basis around the 
 The raw HDR accumulated radiance is tone-mapped to LDR display values using the **ACES filmic** curve (Narkowicz 2015 fit) [^2]:
 
 ```math
-\mathbf{c}_\text{out} = \frac{\mathbf{c}_\text{in} \cdot (2.51 \, \mathbf{c}_\text{in} + 0.03)}{\mathbf{c}_\text{in} \cdot (2.43 \, \mathbf{c}_\text{in} + 0.59) + 0.14}
+\mathbf{c}_\mathrm{out} = \frac{\mathbf{c}_\mathrm{in} \cdot (2.51 \, \mathbf{c}_\mathrm{in} + 0.03)}{\mathbf{c}_\mathrm{in} \cdot (2.43 \, \mathbf{c}_\mathrm{in} + 0.59) + 0.14}
 ```
 
 A pre-exposure factor of $1.3$ is applied before tone mapping to optimise scene luminance scaling.
@@ -241,51 +247,6 @@ The scene consists of **8 spheres** arranged on a checkerboard ground plane, ill
 
 ## Architecture
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│  main.cpp (SDL2 Application)                                  │
-│  ┌──────────────────────────────────────────────────────┐     │
-│  │  Scene Definition (GpuScene data)                     │     │
-│  │  Metal Compute Dispatch (GpuTracer::render())         │     │
-│  │  TTF HUD Overlay (render-stamp metadata)              │     │
-│  └──────────────────────────────────────────────────────┘     │
-└───────────────────────┬────────────────────────────────────────┘
-                        │ ObjC++ Bridge
-┌───────────────────────▼────────────────────────────────────────┐
-│  gpu_tracer.mm (Objective-C++ Wrapper)                        │
-│  ┌──────────────────────────────────────────────────────┐     │
-│  │  MTLDevice · MTLCommandQueue · MTLComputePipelineState │     │
-│  │  MTLBuffer (shared storage mode) for:                 │     │
-│  │    • Pixel framebuffer (4 × W × H bytes)              │     │
-│  │    • Sphere data (8 × 40 bytes)                       │     │
-│  │    • Area light data (48 bytes)                       │     │
-│  │    • Uniforms (light dir, cam pos, dimensions)        │     │
-│  │  Runtime Shader Compilation (newLibraryWithSource:)    │     │
-│  └──────────────────────────────────────────────────────┘     │
-└───────────────────────┬────────────────────────────────────────┘
-                        │ MTLComputeCommandEncoder
-┌───────────────────────▼────────────────────────────────────────┐
-│  GPU (Apple M5 10-core)                                        │
-│  ┌──────────────────────────────────────────────────────┐     │
-│  │  Dispatch: 3420 × 2146 × (1 thread per pixel)        │     │
-│  │  Threadgroup: 8 × 8 = 64 threads                      │     │
-│  │  ┌────────────────────────────────────────────────┐  │     │
-│  │  │  raytrace() kernel (MSL 2.4)                   │  │     │
-│  │  │  ┌──────────────────────────────────────────┐  │  │     │
-│  │  │  │  For each of 16 AA samples:               │  │  │     │
-│  │  │  │    Generate primary ray (DOF offset)      │  │  │     │
-│  │  │  │    For up to 8 bounces:                   │  │  │     │
-│  │  │  │      Sphere intersection (8 spheres)       │  │  │     │
-│  │  │  │      Area light intersection              │  │  │     │
-│  │  │  │      Material evaluation (diffuse + area)  │  │  │     │
-│  │  │  │      Directional shadow ray               │  │  │     │
-│  │  │  │      Glass Fresnel / refraction           │  │  │     │
-│  │  │  │      Glossy reflection perturbation        │  │  │     │
-│  │  │  └──────────────────────────────────────────┘  │  │     │
-│  │  │  ACES tone mapping · Write pixel               │  │     │
-│  │  └────────────────────────────────────────────────┘  │     │
-│  └──────────────────────────────────────────────────────┘     │
-└────────────────────────────────────────────────────────────────┘
 ```mermaid
 flowchart TB
     subgraph Host ["main.cpp (SDL2 Application)"]
@@ -365,9 +326,9 @@ The C++ `GpuTracer` class wraps an Objective-C++ `GpuTracerImpl` object using `_
 All buffers use `MTLResourceStorageModeShared`, which on Apple Silicon (unified memory architecture) places the allocation in a region accessible to both the CPU and GPU without explicit copy or synchronisation. The GPU renders directly into the same buffer that `SDL_UpdateTexture` reads from on the CPU side.
 
 **Memory budget at 3420 × 2146:**
-- Framebuffer: $4 \times 3420 \times 2146 \approx 28.0 \text{ MB}$
-- Sphere + uniforms: $< 1 \text{ KB}$
-- Total GPU-visible: $\approx 28 \text{ MB}$
+- Framebuffer: $4 \times 3420 \times 2146 \approx 28.0 \mathrm{ MB}$
+- Sphere + uniforms: $< 1 \mathrm{ KB}$
+- Total GPU-visible: $\approx 28 \mathrm{ MB}$
 
 ---
 
