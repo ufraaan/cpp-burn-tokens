@@ -13,6 +13,40 @@
 
 A zero-dependency command-line file compressor implementing **Huffman coding** and **LZW dictionary compression** from first principles. No external libraries, no GPU, no graphics — pure C++17 file I/O and bit-level manipulation.
 
+```mermaid
+flowchart TB
+    subgraph Encoder["Encoder"]
+        direction TB
+        FILE["Input File"] --> ALGO{Choose Algorithm}
+        ALGO -->|Huffman| H1["Count byte frequencies"]
+        H1 --> H2["Build min-heap tree"]
+        H2 --> H3["Generate canonical codes"]
+        H3 --> H4["Pack MSB-first bitstream"]
+        ALGO -->|LZW| L1["Init dictionary (256 entries)"]
+        L1 --> L2["Walk input, match patterns"]
+        L2 --> L3{"Dictionary full?"}
+        L3 -->|Yes| L4["Emit CLEAR code (256)"]
+        L4 --> L5["Reset dictionary"]
+        L5 --> L2
+        L3 -->|No| L6["Emit variable code (9-12 bits)"]
+        L6 --> L2
+    end
+
+    subgraph Decoder["Decoder"]
+        direction TB
+        CMP[".cmp file"] -->|Read header| ALGO2{Algorithm}
+        ALGO2 -->|Huffman| D1["Rebuild tree from<br/>256-byte code lengths"]
+        D1 --> D2["Decode bit-by-bit"]
+        ALGO2 -->|LZW| D3["Rebuild dictionary<br/>from code stream"]
+        D3 --> D4["Output decoded bytes"]
+        D2 --> OUT["Original file restored"]
+        D4 --> OUT
+    end
+
+    H4 --> CMP
+    L6 --> CMP
+```
+
 ---
 
 ## Table of Contents
