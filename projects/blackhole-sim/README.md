@@ -1,5 +1,7 @@
 # blackhole-sim — Binary Black Hole Collision Simulator
 
+![blackhole simulator preview](./blackhole-sim.gif)
+
 Real-time N-body black hole collision with relativistic accretion disk rendering, gravitational lensing, LIGO-inspired audio chirp, and a Keplerian solar system mode.
 
 ## Features
