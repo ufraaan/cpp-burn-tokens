@@ -1,7 +1,7 @@
 projects/*/bhs
 projects/*/liquid
 projects/*/cpptracer
-projects/*/compress
+projects/*/pied-piper
 projects/*/pi-montecarlo
 *.o
 *.dSYM/

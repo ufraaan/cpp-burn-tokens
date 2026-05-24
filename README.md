@@ -20,7 +20,7 @@ GPU-accelerated Monte Carlo path tracer on Apple Metal compute shaders.
 
 GPU-accelerated π via Monte Carlo — billions of random points, pure Metal compute, no graphics.
 
-### [compress](./projects/compress)
+### [pied-piper](./projects/pied-piper)
 
 Huffman + LZW file compressor — zero dependencies, pure C++17, bit-level I/O.
 

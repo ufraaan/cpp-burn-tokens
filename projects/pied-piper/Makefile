@@ -3,7 +3,7 @@ CXXFLAGS := -std=c++17 -O3 -Wall -Wextra
 LDFLAGS  :=
 SRCS     := src/main.cpp src/huffman.cpp src/lzw.cpp
 OBJS     := $(SRCS:.cpp=.o)
-TARGET   := compress
+TARGET   := pied-piper
 
 .PHONY: all clean benchmark
 

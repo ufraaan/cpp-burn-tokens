@@ -1,4 +1,4 @@
-# compress — LZW + Huffman File Compressor
+# pied-piper — LZW + Huffman File Compressor
 
 <div align="center">
 
@@ -76,10 +76,10 @@ LZW excels at repetitive data and binaries with repeated byte sequences. It does
 
 ```
 Usage:
-  ./compress <file>                        Compress (auto-select best algorithm)
-  ./compress -d <file.cmp>                 Decompress
-  ./compress -b <file>                     Benchmark all algorithms
-  ./compress -a <algo> <file>              Compress with specific algorithm
+  ./pied-piper <file>                      Compress (auto-select best algorithm)
+  ./pied-piper -d <file.cmp>               Decompress
+  ./pied-piper -b <file>                   Benchmark all algorithms
+  ./pied-piper -a <algo> <file>            Compress with specific algorithm
 
 Algorithms: huffman, lzw, auto
 Output: <file>.<algo>.cmp  (compress),  <file>.cmp → <file>  (decompress)
@@ -89,18 +89,18 @@ Output: <file>.<algo>.cmp  (compress),  <file>.cmp → <file>  (decompress)
 
 ```bash
 # Compress a file (auto-selects Huffman)
-./compress document.txt
+./pied-piper document.txt
 # → document.txt.huffman.cmp
 
 # Compress with LZW
-./compress -a lzw image.bin
+./pied-piper -a lzw image.bin
 # → image.bin.lzw.cmp
 
 # Benchmark both algorithms
-./compress -b large_file.bin
+./pied-piper -b large_file.bin
 
 # Decompress
-./compress -d document.txt.huffman.cmp
+./pied-piper -d document.txt.huffman.cmp
 # → document.txt  (restored to original)
 ```
 
@@ -180,15 +180,15 @@ Tested on **Apple M5 (3.40 GHz)**, single-threaded, `-O3` optimisation.
 ## Build System
 
 ```bash
-cd projects/compress
-make && ./compress <file>
+cd projects/pied-piper
+make && ./pied-piper <file>
 ```
 
 Build targets:
 
 | Target | Description |
 |---|---|
-| `all` | Build the `compress` binary |
+| `all` | Build the `pied-piper` binary |
 | `clean` | Remove object files and binary |
 | `benchmark` | Run the benchmark suite (self-test + source + binary) |
 
