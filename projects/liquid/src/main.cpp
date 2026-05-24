@@ -28,8 +28,10 @@ public:
         v_prev.assign(sz * sz, 0.0f);
         dens.assign(sz * sz, 0.0f);
         dens_prev.assign(sz * sz, 0.0f);
-        hue.assign(sz * sz, 0.5f);
-        hue_prev.assign(sz * sz, 0.5f);
+        dens_r.assign(sz * sz, 0.0f);
+        dens_r_prev.assign(sz * sz, 0.0f);
+        dens_b.assign(sz * sz, 0.0f);
+        dens_b_prev.assign(sz * sz, 0.0f);
         p.assign(sz * sz, 0.0f);
         div.assign(sz * sz, 0.0f);
         wk.assign(sz * sz, 0.0f);
@@ -37,30 +39,26 @@ public:
 
     int IX(int i, int j) const { return j * (N + 2) + i; }
 
-    void addDensityLine(int x1, int y1, int x2, int y2, float amount, float radius, float h = 0.5f) {
+    void addDensityLine(int x1, int y1, int x2, int y2, float amount, float radius, bool is_red) {
         int steps = std::max(std::abs(x2 - x1), std::abs(y2 - y1));
         if (steps < 1) steps = 1;
         for (int s = 0; s <= steps; s++) {
             float t = (float)s / steps;
             int cx = x1 + (int)((x2 - x1) * t);
             int cy = y1 + (int)((y2 - y1) * t);
-            addDensity(cx, cy, amount, radius, h);
+            addDensity(cx, cy, amount, radius, is_red);
         }
     }
 
-    void addDensity(int x, int y, float amount, float radius, float h = 0.5f) {
+    void addDensity(int x, int y, float amount, float radius, bool is_red = false) {
+        float* dst = is_red ? dens_r.data() : dens_b.data();
         for (int j = -(int)radius; j <= (int)radius; j++) {
             for (int i = -(int)radius; i <= (int)radius; i++) {
                 int gx = x + i, gy = y + j;
                 if (gx < 1 || gx > N || gy < 1 || gy > N) continue;
                 float d = std::sqrt(i*i + j*j);
                 if (d > radius) continue;
-                float w = amount * (1 - d / radius);
-                float old_dens = dens[IX(gx, gy)];
-                float old_hue = hue[IX(gx, gy)];
-                dens[IX(gx, gy)] += w;
-                if (dens[IX(gx, gy)] > 0)
-                    hue[IX(gx, gy)] = (old_hue * old_dens + h * w) / dens[IX(gx, gy)];
+                dst[IX(gx, gy)] += amount * (1 - d / radius);
             }
         }
     }
@@ -81,7 +79,7 @@ public:
 
     void addSplash(int cx, int cy, float intensity) {
         int r = 15;
-        addDensity(cx, cy, intensity, r, 1.0f);
+        addDensity(cx, cy, intensity, r, false);
         for (int j = -r; j <= r; j++) {
             for (int i = -r; i <= r; i++) {
                 int gx = cx + i, gy = cy + j;
@@ -92,12 +90,8 @@ public:
                 float angle = std::atan2(j - 3, i) + ((rand() % 200) - 100) * 0.008f;
                 u[IX(gx, gy)] += std::cos(angle) * strength;
                 v[IX(gx, gy)] += std::sin(angle) * strength;
-                if (dist > r * 0.35f && (rand() % 4 == 0)) {
-                    dens[IX(gx, gy)] += 0.4f * (1.0f - dist / r);
-                    float od = dens[IX(gx, gy)] - 0.4f * (1.0f - dist / r);
-                    if (dens[IX(gx, gy)] > 0)
-                        hue[IX(gx, gy)] = (hue[IX(gx, gy)] * std::max(0.0f, od) + 1.0f * 0.4f * (1.0f - dist / r)) / dens[IX(gx, gy)];
-                }
+                if (dist > r * 0.35f && (rand() % 4 == 0))
+                    dens_b[IX(gx, gy)] += 0.4f * (1.0f - dist / r);
             }
         }
     }
@@ -152,31 +146,44 @@ public:
         std::swap(dens, dens_prev);
         setBnd(dens.data(), 0);
 
-        // 5b. Advect hue with reflective walls
-        advect(hue_prev.data(), hue.data(), u.data(), v.data(), dt, true);
-        std::swap(hue, hue_prev);
-        setBnd(hue.data(), 0);
+        // 5b. Advect red and blue dye
+        advect(dens_r_prev.data(), dens_r.data(), u.data(), v.data(), dt, true);
+        std::swap(dens_r, dens_r_prev);
+        setBnd(dens_r.data(), 0);
+        advect(dens_b_prev.data(), dens_b.data(), u.data(), v.data(), dt, true);
+        std::swap(dens_b, dens_b_prev);
+        setBnd(dens_b.data(), 0);
 
-        // 6. Cap density to prevent runaway accumulation at walls
+        // 6. Cap densities
         #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++)
             for (int i = 1; i <= N; i++)
                 dens[IX(i, j)] = std::min(dens[IX(i, j)], 1.0f);
+        #pragma omp parallel for collapse(2)
+        for (int j = 1; j <= N; j++)
+            for (int i = 1; i <= N; i++) {
+                dens_r[IX(i, j)] = std::min(dens_r[IX(i, j)], 1.0f);
+                dens_b[IX(i, j)] = std::min(dens_b[IX(i, j)], 1.0f);
+            }
     }
 
     void reset() {
         std::fill(u.begin(), u.end(), 0.0f);
         std::fill(v.begin(), v.end(), 0.0f);
         std::fill(dens.begin(), dens.end(), 0.0f);
-        std::fill(hue.begin(), hue.end(), 0.5f);
+        std::fill(dens_r.begin(), dens_r.end(), 0.0f);
+        std::fill(dens_b.begin(), dens_b.end(), 0.0f);
         std::fill(u_prev.begin(), u_prev.end(), 0.0f);
         std::fill(v_prev.begin(), v_prev.end(), 0.0f);
         std::fill(dens_prev.begin(), dens_prev.end(), 0.0f);
-        std::fill(hue_prev.begin(), hue_prev.end(), 0.5f);
+        std::fill(dens_r_prev.begin(), dens_r_prev.end(), 0.0f);
+        std::fill(dens_b_prev.begin(), dens_b_prev.end(), 0.0f);
     }
 
     // Public data
-    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev, hue, hue_prev, p, div, wk;
+    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev,
+                       dens_r, dens_r_prev, dens_b, dens_b_prev,
+                       p, div, wk;
 
 private:
     void setBnd(float* f, int b) {
@@ -358,11 +365,14 @@ public:
                 float ambient = 0.45f;
                 float light = ambient + diff * 0.55f + spec * 0.3f;
 
-                // Base color from hue: 0=red, 0.5=purple, 1=blue
-                float hue_val = sol.hue[sol.IX(gi, gj)];
-                float base_r = 200.0f * (1.0f - hue_val) + 60.0f * hue_val;
-                float base_g = 50.0f  * (1.0f - hue_val) + 80.0f * hue_val;
-                float base_b = 60.0f  * (1.0f - hue_val) + 230.0f * hue_val;
+                // Color from red/blue dye ratio
+                float dr_dye = sol.dens_r[sol.IX(gi, gj)];
+                float db_dye = sol.dens_b[sol.IX(gi, gj)];
+                float total_dye = dr_dye + db_dye;
+                float ratio = total_dye > 0 ? dr_dye / total_dye : 0.5f;
+                float base_r = 40.0f  + ratio * 180.0f;
+                float base_g = 60.0f  + (1.0f - ratio) * 30.0f;
+                float base_b = 200.0f - ratio * 170.0f;
 
                 Uint8 pr = (Uint8)std::min(255.0f, base_r * light + spec * 180.0f);
                 Uint8 pg = (Uint8)std::min(255.0f, base_g * light + spec * 180.0f);
@@ -510,7 +520,7 @@ int main() {
                 int ngy = (e.motion.y - PAD) * N / CONT_H;
                 if (gx >= 1 && gx <= N && gy >= 1 && gy <= N &&
                     ngx >= 1 && ngx <= N && ngy >= 1 && ngy <= N) {
-                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4, 0.0f);
+                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4, true);
                     sol.addVelocity(gx, gy,
                         (ngx - gx) * 60.0f, (ngy - gy) * 60.0f, 5);
                 }
