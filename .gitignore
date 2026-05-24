@@ -1,7 +1,11 @@
 projects/*/bhs
 projects/*/liquid
 projects/*/cpptracer
+projects/*/compress
+projects/*/pi-montecarlo
 *.o
 *.dSYM/
 .DS_Store
 *.pch
+*.cmp
+*.out
