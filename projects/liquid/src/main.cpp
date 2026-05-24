@@ -80,8 +80,8 @@ public:
         // 4. Project
         project(u.data(), v.data(), p.data(), div.data());
 
-        // 5. Advect density
-        advect(dens_prev.data(), dens.data(), u.data(), v.data(), dt);
+        // 5. Advect density with reflective walls (water stays in container)
+        advect(dens_prev.data(), dens.data(), u.data(), v.data(), dt, true);
         std::swap(dens, dens_prev);
         setBnd(dens.data(), 0);
     }
@@ -130,13 +130,23 @@ private:
                     lerp(f[IX(i, nj)], f[IX(ni, nj)], fx), fy);
     }
 
-    void advect(float* d, float* d0, float* u, float* v, float dt) {
+    void advect(float* d, float* d0, float* u, float* v, float dt, bool reflect = false) {
         for (int j = 1; j <= N; j++) {
             for (int i = 1; i <= N; i++) {
                 float x = i - dt * u[IX(i, j)];
                 float y = j - dt * v[IX(i, j)];
-                if (x < 0.5f) x = 0.5f; if (x > N + 0.5f) x = N + 0.5f;
-                if (y < 0.5f) y = 0.5f; if (y > N + 0.5f) y = N + 0.5f;
+                if (reflect) {
+                    // Reflective walls: bounce traces back into the grid
+                    if (x < 0.5f) x = 1.0f - x;
+                    else if (x > N + 0.5f) x = 2.0f * (N + 0.5f) - x;
+                    if (y < 0.5f) y = 1.0f - y;
+                    else if (y > N + 0.5f) y = 2.0f * (N + 0.5f) - y;
+                } else {
+                    if (x < 0.5f) x = 0.5f;
+                    if (x > N + 0.5f) x = N + 0.5f;
+                    if (y < 0.5f) y = 0.5f;
+                    if (y > N + 0.5f) y = N + 0.5f;
+                }
                 d[IX(i, j)] = sample(d0, x, y);
             }
         }
@@ -316,14 +326,10 @@ int main() {
     if (!font) font = TTF_OpenFont("/System/Fonts/PingFang.ttc", 13);
 
     FluidSolver sol(N);
-    float gravity = 4.0f;
+    float gravity = 2.0f;
 
     // Initial water blob
     sol.addDensity(N/2, N/4, 1.0f, 14);
-    // Pool at bottom so falling water stays visible
-    for (int i = N/3; i <= 2*N/3; i++)
-        for (int j = N - 12; j <= N; j++)
-            sol.addDensity(i, j, 0.4f, 8);
 
     // Renderer at 2x grid resolution for smoother display
     Renderer rend(ren, N, N * 2, N * 2);
@@ -353,15 +359,12 @@ int main() {
                     case SDLK_r:
                         sol.reset();
                         sol.addDensity(N/2, N/4, 1.0f, 14);
-                        for (int i = N/3; i <= 2*N/3; i++)
-                            for (int j = N - 12; j <= N; j++)
-                                sol.addDensity(i, j, 0.4f, 8);
                         break;
                     case SDLK_SPACE:
                         sol.addDensity(N/2 - 12 + rand()%24, N/6, 1.0f, 10);
                         break;
                     case SDLK_g:
-                        gravity = (gravity == 0) ? 4.0f : 0.0f;
+                        gravity = (gravity == 0) ? 2.0f : 0.0f;
                         break;
                     default: break;
                 }
