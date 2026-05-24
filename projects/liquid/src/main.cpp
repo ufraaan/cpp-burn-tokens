@@ -3,265 +3,279 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <cstring>
 #include <vector>
 #include <algorithm>
 
-// ─── 2D Math ───────────────────────────────────────────────────────────────
-struct Vec2 {
-    float x, y;
-    Vec2() : x(0), y(0) {}
-    Vec2(float x, float y) : x(x), y(y) {}
-    Vec2 operator+(Vec2 o) const { return {x+o.x, y+o.y}; }
-    Vec2 operator-(Vec2 o) const { return {x-o.x, y-o.y}; }
-    Vec2 operator*(float s) const { return {x*s, y*s}; }
-    Vec2 operator/(float s) const { return {x/s, y/s}; }
-    Vec2& operator+=(Vec2 o) { x+=o.x; y+=o.y; return *this; }
-    Vec2& operator-=(Vec2 o) { x-=o.x; y-=o.y; return *this; }
-    float dot(Vec2 o) const { return x*o.x + y*o.y; }
-    float len2() const { return x*x + y*y; }
-    float len() const { return std::sqrt(len2()); }
-    Vec2 norm() const { float l = len(); return l > 0 ? *this / l : Vec2{0,0}; }
-};
+// ─── 2D Navier-Stokes grid solver ───────────────────────────────────────────
+// MAC grid: velocities at cell faces, pressure/density at cell centers
+// Interior: cells 1..N (0 and N+1 are boundary/ghost)
 
-struct Particle {
-    Vec2 pos, vel;
-    float dens, pres;
-    Particle() : pos(), vel(), dens(0), pres(0) {}
-    Particle(float x, float y) : pos(x, y), vel(), dens(0), pres(0) {}
-};
-
-// ─── 2D SPH ─────────────────────────────────────────────────────────────────
-struct SPH {
-    float h, h2;
-    float poly6K;  // 4/(pi*h^2)
-    float spikyG;  // -30/(pi*h^3)
-
-    SPH(float h_) : h(h_), h2(h_*h_) {
-        poly6K = 4.0f / (M_PI * h2);
-        spikyG = -30.0f / (M_PI * h * h2);
-    }
-
-    float poly6(float r2) const {
-        if (r2 < 0 || r2 > h2) return 0;
-        float q = 1.0f - r2 / h2;
-        return poly6K * q * q * q;
-    }
-
-    Vec2 spikyGrad(Vec2 dir, float r) const {
-        if (r < 0.001f || r > h) return {0, 0};
-        float q = 1.0f - r / h;
-        return dir * (spikyG * q * q);
-    }
-};
-
-struct Params {
-    float mass = 80;
-    float restDens = 2.0f;
-    float gasConst = 50000;
-    float viscosity = 0.8f;
-    float gravity = 300;
-    float dt = 0.005f;
-    float wallDamp = 0.15f;
-    float surfTens = 0.01f;
-};
-
-class Solver {
+class FluidSolver {
 public:
-    Solver(float ww, float wh, float h) : m_ww(ww), m_wh(wh), m_h(h), m_sph(h) {
-        m_gw = (int)(ww / h) + 2;
-        m_gh = (int)(wh / h) + 2;
-        m_next.assign(m_gw * m_gh, -1);
+    int N;          // grid cells per dimension
+    float cellSize; // pixels per cell
+    float dt;
+    float visc;
+    float densitySrc;
+
+    FluidSolver(int n, float cs)
+        : N(n), cellSize(cs), dt(0.016f), visc(0.0005f), densitySrc(0.5f)
+    {
+        int sz = N + 2;
+        u.assign(sz * sz, 0.0f);
+        v.assign(sz * sz, 0.0f);
+        u_prev.assign(sz * sz, 0.0f);
+        v_prev.assign(sz * sz, 0.0f);
+        dens.assign(sz * sz, 0.0f);
+        dens_prev.assign(sz * sz, 0.0f);
+        p.assign(sz * sz, 0.0f);
+        div.assign(sz * sz, 0.0f);
     }
 
-    void add(float x, float y, float vx = 0, float vy = 0) {
-        m_p.push_back({x, y});
-        m_p.back().vel = {vx, vy};
-        m_f.push_back({0, 0});
-    }
-
-    void addBlock(float x, float y, int n, float sp) {
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-                add(x + i * sp, y + j * sp);
-    }
-
-    void reset() { m_p.clear(); m_f.clear(); }
-
-    void step(const Params& pr) {
-        // --- Build grid ---
-        std::fill(m_next.begin(), m_next.end(), -1);
-        m_link.resize(m_p.size());
-        for (int i = 0; i < (int)m_p.size(); i++) {
-            int gx = (int)(m_p[i].pos.x / m_h);
-            int gy = (int)(m_p[i].pos.y / m_h);
-            if (gx < 0) gx = 0; if (gx >= m_gw) gx = m_gw - 1;
-            if (gy < 0) gy = 0; if (gy >= m_gh) gy = m_gh - 1;
-            int c = gy * m_gw + gx;
-            m_link[i] = m_next[c];
-            m_next[c] = i;
-        }
-
-        // --- Density ---
-        auto visit = [&](int i, auto&& fn) {
-            int gx = (int)(m_p[i].pos.x / m_h);
-            int gy = (int)(m_p[i].pos.y / m_h);
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    int cx = gx + dx, cy = gy + dy;
-                    if (cx < 0 || cx >= m_gw || cy < 0 || cy >= m_gh) continue;
-                    int idx = m_next[cy * m_gw + cx];
-                    while (idx != -1) {
-                        if (idx != i) fn(idx);
-                        idx = m_link[idx];
-                    }
-                }
+    void addDensity(int x, int y, float amount, float radius) {
+        int sz = N + 2;
+        for (int j = -radius; j <= radius; j++) {
+            for (int i = -radius; i <= radius; i++) {
+                int gx = x + i, gy = y + j;
+                if (gx < 1 || gx > N || gy < 1 || gy > N) continue;
+                float d = std::sqrt(i*i + j*j);
+                if (d > radius) continue;
+                dens[gy * sz + gx] += amount * (1 - d / radius);
             }
-        };
-
-        for (auto& p : m_p) p.dens = 0;
-        for (int i = 0; i < (int)m_p.size(); i++) {
-            m_p[i].dens += pr.mass * m_sph.poly6(0);
-            visit(i, [&](int j) {
-                float r2 = (m_p[j].pos - m_p[i].pos).len2();
-                m_p[i].dens += pr.mass * m_sph.poly6(r2);
-            });
-        }
-        for (auto& p : m_p) {
-            p.pres = pr.gasConst * (p.dens - pr.restDens);
-            if (p.pres < 0) p.pres = 0;
-        }
-
-        // --- Forces ---
-        for (auto& f : m_f) f = {0, 0};
-        for (int i = 0; i < (int)m_p.size(); i++) {
-            visit(i, [&](int j) {
-                auto& pi = m_p[i], & pj = m_p[j];
-                Vec2 d = pj.pos - pi.pos;
-                float r = d.len();
-                if (r > m_h || r < 0.001f) return;
-                Vec2 dir = d / r;
-
-                float avgD = (pi.dens + pj.dens) * 0.5f;
-                float avgP = (pi.pres + pj.pres) * 0.5f;
-
-                Vec2 fp = m_sph.spikyGrad(dir, r) * (pr.mass * avgP / (avgD * avgD));
-                Vec2 fv = (pj.vel - pi.vel) * (pr.mass * pr.viscosity / avgD) * (m_sph.poly6(r*r) * 0.5f);
-                Vec2 ft = dir * (pr.mass * pr.surfTens * m_sph.poly6(r*r));
-
-                Vec2 total = fp + fv + ft;
-                m_f[i] += total;
-                m_f[j] -= total;
-            });
-        }
-
-        // --- Integrate ---
-        float invM = 1.0f / pr.mass;
-        Vec2 grav(0, pr.gravity);
-        for (int i = 0; i < (int)m_p.size(); i++) {
-            Vec2 acc = m_f[i] * invM + grav;
-            m_p[i].vel += acc * pr.dt;
-            m_p[i].pos += m_p[i].vel * pr.dt;
-        }
-
-        // --- Bounds ---
-        float r = 4;
-        for (auto& p : m_p) {
-            if (p.pos.x < r) { p.pos.x = r; p.vel.x = -p.vel.x * pr.wallDamp; }
-            if (p.pos.x > m_ww - r) { p.pos.x = m_ww - r; p.vel.x = -p.vel.x * pr.wallDamp; }
-            if (p.pos.y < r) { p.pos.y = r; p.vel.y = -p.vel.y * pr.wallDamp; }
-            if (p.pos.y > m_wh - r) { p.pos.y = m_wh - r; p.vel.y = -p.vel.y * pr.wallDamp; }
         }
     }
 
-    const auto& parts() const { return m_p; }
-    float worldW() const { return m_ww; }
-    float worldH() const { return m_wh; }
-    float h() const { return m_h; }
+    void addVelocity(int x, int y, float vx, float vy, float radius) {
+        int sz = N + 2;
+        for (int j = -radius; j <= radius; j++) {
+            for (int i = -radius; i <= radius; i++) {
+                int gx = x + i, gy = y + j;
+                if (gx < 1 || gx > N || gy < 1 || gy > N) continue;
+                float d = std::sqrt(i*i + j*j);
+                if (d > radius) continue;
+                float w = 1 - d / radius;
+                u[gy * sz + gx] += vx * w;
+                v[gy * sz + gx] += vy * w;
+            }
+        }
+    }
+
+    void step() {
+        int sz = N + 2;
+
+        // 1. Add external forces (gravity)
+        for (int j = 1; j <= N; j++)
+            for (int i = 1; i <= N; i++)
+                v[j * sz + i] += 200.0f * dt; // gravity pulling down
+
+        // 2. Advect velocity (semi-Lagrangian)
+        advect(u.data(), u_prev.data(), v.data(), u.data(), dt);
+        advect(v.data(), v_prev.data(), u.data(), v.data(), dt);
+        std::swap(u, u_prev);
+        std::swap(v, v_prev);
+
+        // 3. Diffuse velocity
+        diffuse(u.data(), u_prev.data(), visc, dt);
+        diffuse(v.data(), v_prev.data(), visc, dt);
+        std::swap(u, u_prev);
+        std::swap(v, v_prev);
+
+        // 4. Project (pressure solve + divergence-free correction)
+        project(u.data(), v.data(), p.data(), div.data());
+
+        // 5. Advect density
+        advect(dens.data(), dens_prev.data(), u.data(), v.data(), dt);
+        std::swap(dens, dens_prev);
+    }
+
+public:
+    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev, p, div;
+
+    int IX(int i, int j) const { return j * (N + 2) + i; }
 
 private:
-    float m_ww, m_wh, m_h;
-    SPH m_sph;
-    std::vector<Particle> m_p;
-    std::vector<Vec2> m_f;
-    std::vector<int> m_link, m_next;
-    int m_gw, m_gh;
-};
-
-// ─── Particle Sprite Renderer ───────────────────────────────────────────────
-class Renderer {
-public:
-    Renderer(SDL_Renderer* ren) : m_ren(ren), m_sz(40) {
-        m_sprite = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
-            SDL_TEXTUREACCESS_STATIC, m_sz, m_sz);
-        SDL_SetTextureBlendMode(m_sprite, SDL_BLENDMODE_BLEND);
-
-        std::vector<Uint32> pix(m_sz * m_sz, 0x00000000);
-        int half = m_sz / 2;
-        for (int y = 0; y < m_sz; y++) {
-            for (int x = 0; x < m_sz; x++) {
-                float dx = x - half, dy = y - half;
-                float r = std::sqrt(dx*dx + dy*dy) / half;
-                if (r >= 1) continue;
-                float a = (1.0f - r*r) * 200;
-                Uint32 ai = (Uint32)a;
-                pix[y * m_sz + x] = (ai << 24) | (ai << 16) | (ai << 8) | ai;
-            }
-        }
-        SDL_UpdateTexture(m_sprite, nullptr, pix.data(), m_sz * 4);
+    void bind(int& i, int& j) {
+        if (i < 1) i = 1; if (i > N) i = N;
+        if (j < 1) j = 1; if (j > N) j = N;
     }
 
-    ~Renderer() { if (m_sprite) SDL_DestroyTexture(m_sprite); }
+    float lerp(float a, float b, float t) { return a + t * (b - a); }
 
-    void present(const Solver& sol) {
+    float sample(float* f, float x, float y) {
+        int i = (int)x, j = (int)y;
+        float fx = x - i, fy = y - j;
+        i = std::max(1, std::min(N, i));
+        j = std::max(1, std::min(N, j));
+        int ni = std::min(i + 1, N);
+        int nj = std::min(j + 1, N);
+        int sz = N + 2;
+        return lerp(lerp(f[IX(i,j)], f[IX(ni,j)], fx),
+                    lerp(f[IX(i,nj)], f[IX(ni,nj)], fx), fy);
+    }
+
+    void advect(float* d, float* d0, float* u, float* v, float dt) {
+        int sz = N + 2;
+        for (int j = 1; j <= N; j++) {
+            for (int i = 1; i <= N; i++) {
+                float x = i - dt * u[IX(i,j)] * N;
+                float y = j - dt * v[IX(i,j)] * N;
+                if (x < 0.5f) x = 0.5f; if (x > N + 0.5f) x = N + 0.5f;
+                if (y < 0.5f) y = 0.5f; if (y > N + 0.5f) y = N + 0.5f;
+                d[IX(i,j)] = sample(d0, x, y);
+            }
+        }
+    }
+
+    void diffuse(float* x, float* x0, float diff, float dt) {
+        float a = dt * diff * N * N;
+        int sz = N + 2;
+        // Gauss-Seidel iterations
+        for (int k = 0; k < 20; k++) {
+            for (int j = 1; j <= N; j++) {
+                for (int i = 1; i <= N; i++) {
+                    x[IX(i,j)] = (x0[IX(i,j)] + a * (x[IX(i-1,j)] + x[IX(i+1,j)]
+                                                    + x[IX(i,j-1)] + x[IX(i,j+1)]))
+                                 / (1 + 4 * a);
+                }
+            }
+            setBnd(x, 1);
+        }
+    }
+
+    void project(float* u, float* v, float* p, float* div) {
+        int sz = N + 2;
+        // Compute divergence
+        for (int j = 1; j <= N; j++) {
+            for (int i = 1; i <= N; i++) {
+                div[IX(i,j)] = (u[IX(i+1,j)] - u[IX(i-1,j)]
+                              + v[IX(i,j+1)] - v[IX(i,j-1)]) * (-0.5f / N);
+                p[IX(i,j)] = 0;
+            }
+        }
+        setBnd(div, 0);
+
+        // Solve Poisson equation for pressure
+        for (int k = 0; k < 30; k++) {
+            for (int j = 1; j <= N; j++) {
+                for (int i = 1; i <= N; i++) {
+                    p[IX(i,j)] = (div[IX(i,j)]
+                                + p[IX(i-1,j)] + p[IX(i+1,j)]
+                                + p[IX(i,j-1)] + p[IX(i,j+1)]) * 0.25f;
+                }
+            }
+            setBnd(p, 0);
+        }
+
+        // Subtract pressure gradient from velocity
+        for (int j = 1; j <= N; j++) {
+            for (int i = 1; i <= N; i++) {
+                u[IX(i,j)] -= 0.5f * N * (p[IX(i+1,j)] - p[IX(i-1,j)]);
+                v[IX(i,j)] -= 0.5f * N * (p[IX(i,j+1)] - p[IX(i,j-1)]);
+            }
+        }
+        setBnd(u, 1);
+        setBnd(v, 2);
+    }
+
+    void setBnd(float* f, int b) {
+        int sz = N + 2;
+        // Horizontal walls
+        for (int i = 1; i <= N; i++) {
+            f[IX(i,0)]   = (b == 2) ? -f[IX(i,1)]   : f[IX(i,1)];
+            f[IX(i,N+1)] = (b == 2) ? -f[IX(i,N)]   : f[IX(i,N)];
+        }
+        // Vertical walls
+        for (int j = 1; j <= N; j++) {
+            f[IX(0,j)]   = (b == 1) ? -f[IX(1,j)]   : f[IX(1,j)];
+            f[IX(N+1,j)] = (b == 1) ? -f[IX(N,j)]   : f[IX(N,j)];
+        }
+        // Corners
+        f[IX(0,0)]     = (f[IX(1,0)] + f[IX(0,1)]) * 0.5f;
+        f[IX(N+1,0)]   = (f[IX(N,0)] + f[IX(N+1,1)]) * 0.5f;
+        f[IX(0,N+1)]   = (f[IX(1,N+1)] + f[IX(0,N)]) * 0.5f;
+        f[IX(N+1,N+1)] = (f[IX(N,N+1)] + f[IX(N+1,N)]) * 0.5f;
+    }
+};
+
+// ─── Renderer ───────────────────────────────────────────────────────────────
+class Renderer {
+public:
+    Renderer(SDL_Renderer* ren, int w, int h, int n)
+        : m_ren(ren), m_w(w), m_h(h), m_n(n), m_tex(nullptr)
+    {
+        m_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
+            SDL_TEXTUREACCESS_STREAMING, n, n);
+    }
+
+    ~Renderer() { if (m_tex) SDL_DestroyTexture(m_tex); }
+
+    void present(FluidSolver& sol) {
         SDL_SetRenderDrawColor(m_ren, 6, 6, 18, 255);
         SDL_RenderClear(m_ren);
 
-        int half = m_sz / 2;
-        for (const auto& p : sol.parts()) {
-            float spd = p.vel.len();
-            float t = std::min(spd / 300.0f, 1.0f);
+        int sz = sol.N + 2;
+        std::vector<Uint32> pix(sol.N * sol.N);
 
-            // Deep blue base → bright cyan as speed increases
-            Uint8 r = (Uint8)(15 + t * 110);
-            Uint8 g = (Uint8)(50 + t * 180);
-            Uint8 b = (Uint8)(140 + t * 115);
+        for (int j = 0; j < sol.N; j++) {
+            for (int i = 0; i < sol.N; i++) {
+                float d = sol.dens[(j + 1) * sz + (i + 1)];
+                if (d < 0.01f) {
+                    pix[j * sol.N + i] = 0xFF060612;
+                    continue;
+                }
 
-            SDL_SetTextureColorMod(m_sprite, r, g, b);
-            SDL_SetTextureAlphaMod(m_sprite, 190);
+                // Water color: transparent blue to opaque cyan
+                float t = std::min(d / 0.6f, 1.0f);
+                Uint8 r = (Uint8)(20 + t * 100);
+                Uint8 g = (Uint8)(60 + t * 160);
+                Uint8 b = (Uint8)(180 + t * 75);
+                Uint8 a = (Uint8)(std::min(d / 0.15f, 1.0f) * 255);
 
-            SDL_Rect dst = {(int)p.pos.x - half, (int)p.pos.y - half, m_sz, m_sz};
-            SDL_RenderCopy(m_ren, m_sprite, nullptr, &dst);
+                // Specular-style brightening on surface
+                float surf = std::abs(d - 0.18f) < 0.05f ? 1.0f : 0.0f;
+                r = (Uint8)std::min(255.0f, r + surf * 120);
+                g = (Uint8)std::min(255.0f, g + surf * 120);
+                b = (Uint8)std::min(255.0f, b + surf * 140);
+
+                pix[j * sol.N + i] = (a << 24) | (r << 16) | (g << 8) | b;
+            }
         }
+
+        SDL_UpdateTexture(m_tex, nullptr, pix.data(), sol.N * 4);
+        SDL_RenderCopy(m_ren, m_tex, nullptr, nullptr);
     }
 
 private:
     SDL_Renderer* m_ren;
-    SDL_Texture* m_sprite;
-    int m_sz;
+    SDL_Texture* m_tex;
+    int m_w, m_h, m_n;
 };
 
 // ─── Main ───────────────────────────────────────────────────────────────────
 int main() {
     std::srand(std::time(nullptr));
 
-    const int W = 780, H = 580;
+    const int WIN_W = 800, WIN_H = 600;
+    const int N = 100; // 100×100 grid
 
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* win = SDL_CreateWindow("Liquid — 2D Fluid Simulation",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, W, H, 0);
+    SDL_Window* win = SDL_CreateWindow("Liquid — Fluid Simulation",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIN_W, WIN_H, 0);
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
 
-    Solver sol(W, H, 22);
-    Params pr;
-    sol.addBlock(180, 30, 20, 10); // higher up so it falls longer
+    FluidSolver sol(N, (float)WIN_W / N);
+    sol.dt = 0.02f;
 
-    Renderer rend(ren);
+    // Place a blob of water
+    sol.addDensity(N/2, N/2 + 10, 1.0f, 12);
+
+    Renderer rend(ren, WIN_W, WIN_H, N);
 
     bool run = true;
     int mx = 0, my = 0;
     bool md = false;
     Uint32 lastTick = SDL_GetTicks();
-    float spawnT = 0;
     int frames = 0, fps = 0;
     Uint32 fpsT = SDL_GetTicks();
 
@@ -270,17 +284,33 @@ int main() {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) run = false;
             if (e.type == SDL_KEYDOWN) {
-                switch (e.key.keysym.sym) {
-                    case SDLK_ESCAPE: run = false; break;
-                    case SDLK_r: sol.reset(); sol.addBlock(180, 30, 20, 10); break;
-                    case SDLK_SPACE: sol.addBlock(200 + rand()%200, 40, 8, 10); break;
-                    case SDLK_g: pr.gravity = (pr.gravity == 0) ? 300.0f : 0.0f; break;
+                if (e.key.keysym.sym == SDLK_ESCAPE) run = false;
+                if (e.key.keysym.sym == SDLK_r) {
+                    // Reset: clear everything
+                    std::fill(sol.dens.begin(), sol.dens.end(), 0.0f);
+                    std::fill(sol.u.begin(), sol.u.end(), 0.0f);
+                    std::fill(sol.v.begin(), sol.v.end(), 0.0f);
+                    sol.addDensity(N/2, N/2 + 10, 1.0f, 12);
+                }
+                if (e.key.keysym.sym == SDLK_SPACE) {
+                    sol.addDensity(N/2 - 8 + rand()%16, N/4, 0.8f, 8);
                 }
             }
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
                 { md = true; mx = e.button.x; my = e.button.y; }
-            if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) md = false;
-            if (e.type == SDL_MOUSEMOTION && md) { mx = e.motion.x; my = e.motion.y; }
+            if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
+                md = false;
+            if (e.type == SDL_MOUSEMOTION && md) {
+                int gx = mx * N / WIN_W;
+                int gy = my * N / WIN_H;
+                int ngx = e.motion.x * N / WIN_W;
+                int ngy = e.motion.y * N / WIN_H;
+                sol.addDensity(ngx, ngy, 0.5f, 3);
+                sol.addVelocity(gx, gy,
+                    (ngx - gx) * 80.0f,
+                    (ngy - gy) * 80.0f, 4);
+                mx = e.motion.x; my = e.motion.y;
+            }
         }
 
         Uint32 now = SDL_GetTicks();
@@ -288,16 +318,7 @@ int main() {
         if (dt > 0.05f) dt = 0.05f;
         lastTick = now;
 
-        if (md) {
-            spawnT += dt;
-            while (spawnT > 0.008f) {
-                sol.add(mx + (rand()%20 - 10), my + (rand()%16 - 8),
-                    (rand()%80 - 40) * 0.2f, -1 - (rand()%50) * 0.05f);
-                spawnT -= 0.008f;
-            }
-        } else spawnT = 0;
-
-        sol.step(pr);
+        sol.step();
         rend.present(sol);
         SDL_RenderPresent(ren);
 
@@ -306,8 +327,8 @@ int main() {
             fps = frames;
             char buf[100];
             std::snprintf(buf, sizeof(buf),
-                "Liquid [%d FPS | %zu drops] Click=spray  R=reset  Space=splash  G=gravity",
-                fps, sol.parts().size());
+                "Liquid  [%d FPS | %dx%d grid] Click+drag=stir  Space=splash  R=reset",
+                fps, N, N);
             SDL_SetWindowTitle(win, buf);
             frames = 0; fpsT = now;
         }
