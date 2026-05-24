@@ -7,6 +7,7 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
+#include <omp.h>
 
 // ─── 2D Navier-Stokes solver ────────────────────────────────────────────────
 // MAC grid: velocities & density at cell centers. Ghost cells 0 and N+1.
@@ -29,6 +30,7 @@ public:
         dens_prev.assign(sz * sz, 0.0f);
         p.assign(sz * sz, 0.0f);
         div.assign(sz * sz, 0.0f);
+        wk.assign(sz * sz, 0.0f);
     }
 
     int IX(int i, int j) const { return j * (N + 2) + i; }
@@ -60,8 +62,8 @@ public:
     }
 
     void step(float gravity) {
-        // 1. Gravity — only where water exists so empty air cells don't
-        //    accelerate downward. Creates natural hydrostatic pressure.
+        // 1. Gravity — only where water exists
+        #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++)
             for (int i = 1; i <= N; i++)
                 v[IX(i, j)] += gravity * dt * std::min(dens[IX(i, j)], 1.0f);
@@ -87,6 +89,7 @@ public:
         setBnd(dens.data(), 0);
 
         // 6. Cap density to prevent runaway accumulation at walls
+        #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++)
             for (int i = 1; i <= N; i++)
                 dens[IX(i, j)] = std::min(dens[IX(i, j)], 1.0f);
@@ -102,7 +105,7 @@ public:
     }
 
     // Public data
-    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev, p, div;
+    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev, p, div, wk;
 
 private:
     void setBnd(float* f, int b) {
@@ -137,6 +140,7 @@ private:
     }
 
     void advect(float* d, float* d0, float* u, float* v, float dt, bool reflect = false) {
+        #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++) {
             for (int i = 1; i <= N; i++) {
                 float x = i - dt * u[IX(i, j)];
@@ -168,16 +172,22 @@ private:
     void diffuse(float* x, float* x0, float diff, float dt) {
         float a = dt * diff * N * N;
         for (int k = 0; k < 20; k++) {
+            #pragma omp parallel for collapse(2)
             for (int j = 1; j <= N; j++)
                 for (int i = 1; i <= N; i++)
-                    x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i-1, j)] + x[IX(i+1, j)]
-                                                      + x[IX(i, j-1)] + x[IX(i, j+1)]))
+                    wk[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i-1, j)] + x[IX(i+1, j)]
+                                                       + x[IX(i, j-1)] + x[IX(i, j+1)]))
                                  / (1 + 4 * a);
+            #pragma omp parallel for collapse(2)
+            for (int j = 1; j <= N; j++)
+                for (int i = 1; i <= N; i++)
+                    x[IX(i, j)] = wk[IX(i, j)];
             setBnd(x, 1);
         }
     }
 
     void project(float* u, float* v, float* p, float* div) {
+        #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++) {
             for (int i = 1; i <= N; i++) {
                 div[IX(i, j)] = (u[IX(i+1, j)] - u[IX(i-1, j)]
@@ -187,13 +197,19 @@ private:
         }
         setBnd(div, 0);
         for (int k = 0; k < 30; k++) {
+            #pragma omp parallel for collapse(2)
             for (int j = 1; j <= N; j++)
                 for (int i = 1; i <= N; i++)
-                    p[IX(i, j)] = (div[IX(i, j)]
+                    wk[IX(i, j)] = (div[IX(i, j)]
                                  + p[IX(i-1, j)] + p[IX(i+1, j)]
                                  + p[IX(i, j-1)] + p[IX(i, j+1)]) * 0.25f;
+            #pragma omp parallel for collapse(2)
+            for (int j = 1; j <= N; j++)
+                for (int i = 1; i <= N; i++)
+                    p[IX(i, j)] = wk[IX(i, j)];
             setBnd(p, 0);
         }
+        #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++) {
             for (int i = 1; i <= N; i++) {
                 u[IX(i, j)] -= 0.5f * N * (p[IX(i+1, j)] - p[IX(i-1, j)]);
@@ -321,8 +337,8 @@ private:
 int main() {
     std::srand(std::time(nullptr));
 
-    const int WIN_W = 960, WIN_H = 740;
-    const int N = 150;
+    const int WIN_W = 960, WIN_H = 960;
+    const int N = 450;
     const int PAD = 30;              // container padding from window edges
     const int CONT_W = WIN_W - PAD * 2;
     const int CONT_H = WIN_H - PAD * 2;
