@@ -1,7 +1,7 @@
 CXX      := clang++
-CXXFLAGS := -std=c++17 -O3 -march=native -I/opt/homebrew/include -Isrc
+CXXFLAGS := -std=c++17 -O3 -march=native -I/opt/homebrew/include
 LDFLAGS  := -L/opt/homebrew/lib -lSDL2 -pthread
-SRC      := src/main.cpp src/sph.cpp src/renderer.cpp
+SRC      := src/main.cpp
 OBJ      := $(SRC:.cpp=.o)
 TARGET   := liquid
 
@@ -12,7 +12,7 @@ all: $(TARGET)
 $(TARGET): $(OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-src/%.o: src/%.cpp src/types.hpp src/sph.hpp src/renderer.hpp
+src/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
