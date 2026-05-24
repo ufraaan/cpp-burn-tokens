@@ -56,13 +56,13 @@ struct SPH {
 
 struct Params {
     float mass = 80;
-    float restDens = 1;
-    float gasConst = 30000;
-    float viscosity = 0.3f;
-    float gravity = 500;
+    float restDens = 2.0f;
+    float gasConst = 50000;
+    float viscosity = 0.8f;
+    float gravity = 300;
     float dt = 0.005f;
-    float wallDamp = 0.3f;
-    float surfTens = 0.02f;
+    float wallDamp = 0.15f;
+    float surfTens = 0.01f;
 };
 
 class Solver {
@@ -190,7 +190,7 @@ private:
 // ─── Particle Sprite Renderer ───────────────────────────────────────────────
 class Renderer {
 public:
-    Renderer(SDL_Renderer* ren) : m_ren(ren), m_sz(32) {
+    Renderer(SDL_Renderer* ren) : m_ren(ren), m_sz(40) {
         m_sprite = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888,
             SDL_TEXTUREACCESS_STATIC, m_sz, m_sz);
         SDL_SetTextureBlendMode(m_sprite, SDL_BLENDMODE_BLEND);
@@ -274,7 +274,7 @@ int main() {
                     case SDLK_ESCAPE: run = false; break;
                     case SDLK_r: sol.reset(); sol.addBlock(180, 30, 20, 10); break;
                     case SDLK_SPACE: sol.addBlock(200 + rand()%200, 40, 8, 10); break;
-                    case SDLK_g: pr.gravity = (pr.gravity == 0) ? 500.0f : 0.0f; break;
+                    case SDLK_g: pr.gravity = (pr.gravity == 0) ? 300.0f : 0.0f; break;
                 }
             }
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
