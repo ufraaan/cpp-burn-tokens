@@ -1,6 +1,5 @@
 projects/*/bhs
-projects/*/form
-projects/*/voxel
+projects/*/liquid
 *.o
 *.dSYM/
 .DS_Store

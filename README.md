@@ -4,18 +4,18 @@ A curated collection of C++ simulation and visualization projects, built with mo
 
 ## Projects
 
-### [form](./projects/form)
+### [liquid](./projects/liquid)
 
-Real-time 3D Mandelbulb fractal explorer powered by software ray marching — no GPU needed.
+Real-time 2D fluid simulation using Smoothed Particle Hydrodynamics (SPH).
 
 **Features:**
-- Ray-marched Mandelbulb set (power-2 through power-12) with infinite geometric detail
-- Orbit-trap coloring producing vibrant, organic multi-spectral palettes
-- Real-time interactive camera with orbital controls and auto-rotation
-- Dynamic ambient occlusion and soft shadow approximation
-- Adjustable iteration depth and fractal power at runtime
+- Interactive SPH solver with pressure, viscosity, and surface tension forces
+- Grid-based spatial hashing for fast neighbor lookup
+- Glowing particle rendering with velocity-based color mapping
+- Click to spray, splash, and pour fluid in real time
+- Gravity toggle for zero-G experiments
 
-**Controls:** `Drag` Orbit · `Scroll` Zoom · `+/-` Power · `↑/↓` Iterations · `Space` Auto-rotate
+**Controls:** `Click+Drag` Spray fluid · `R` Reset · `Space` Splash · `G` Toggle gravity
 
 ---
 
@@ -40,8 +40,8 @@ Real-time black hole collision simulation with N-body gravity, 3D accretion disk
 Each project has its own `Makefile`. From the project directory:
 
 ```bash
-cd projects/form
-make && ./form
+cd projects/liquid
+make && ./liquid
 ```
 
 **Dependencies:** SDL2 (install via Homebrew: `brew install sdl2`). Some projects may also require `sdl2_ttf`.
