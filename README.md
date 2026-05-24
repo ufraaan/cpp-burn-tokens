@@ -16,6 +16,10 @@ Binary black hole collision with accretion disk, gravitational lensing, and LIGO
 
 GPU-accelerated Monte Carlo path tracer on Apple Metal compute shaders.
 
+### [pi-montecarlo](./projects/pi-montecarlo)
+
+GPU-accelerated π via Monte Carlo — billions of random points, pure Metal compute, no graphics.
+
 ---
 
 ## Building
@@ -27,4 +31,4 @@ cd projects/liquid
 make && ./liquid
 ```
 
-**Dependencies:** SDL2 + SDL2_ttf (install via Homebrew: `brew install sdl2 sdl2_ttf`). The constexpr-tracer additionally requires the Metal and Foundation frameworks (included with macOS).
+**Dependencies:** SDL2 + SDL2_ttf (install via Homebrew: `brew install sdl2 sdl2_ttf`) for the GUI projects. The constexpr-tracer and pi-montecarlo additionally require the Metal and Foundation frameworks (included with macOS).
