@@ -4,6 +4,8 @@ projects/*/cpptracer
 projects/*/pied-piper
 projects/*/brainfuck
 projects/*/pi-montecarlo
+projects/raster/raster
+projects/raster/*.ppm
 *.o
 *.dSYM/
 .DS_Store
