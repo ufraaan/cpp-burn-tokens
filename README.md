@@ -24,6 +24,10 @@ GPU-accelerated π via Monte Carlo — billions of random points, pure Metal com
 
 Huffman + LZW file compressor — zero dependencies, pure C++17, bit-level I/O.
 
+### [brainfuck](./projects/brainfuck)
+
+Brainfuck esoteric language interpreter — 8 commands, tape machine, debug/step/benchmark modes.
+
 ---
 
 ## Building

@@ -2,6 +2,7 @@ projects/*/bhs
 projects/*/liquid
 projects/*/cpptracer
 projects/*/pied-piper
+projects/*/brainfuck
 projects/*/pi-montecarlo
 *.o
 *.dSYM/
