@@ -1,6 +1,6 @@
 # cpp-vibe-code
 
-just a repo i use to vibe code random shit when i'm bored. i have genuinely no idea what half of this does but it compiles so we ball.
+just a repo i use to vibe code random shit when i'm bored. i have genuinely no idea what any of this does but it compiles so we ball.
 
 ## Projects
 
