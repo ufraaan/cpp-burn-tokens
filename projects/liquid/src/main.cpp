@@ -28,6 +28,8 @@ public:
         v_prev.assign(sz * sz, 0.0f);
         dens.assign(sz * sz, 0.0f);
         dens_prev.assign(sz * sz, 0.0f);
+        hue.assign(sz * sz, 0.5f);
+        hue_prev.assign(sz * sz, 0.5f);
         p.assign(sz * sz, 0.0f);
         div.assign(sz * sz, 0.0f);
         wk.assign(sz * sz, 0.0f);
@@ -35,25 +37,30 @@ public:
 
     int IX(int i, int j) const { return j * (N + 2) + i; }
 
-    void addDensityLine(int x1, int y1, int x2, int y2, float amount, float radius) {
+    void addDensityLine(int x1, int y1, int x2, int y2, float amount, float radius, float h = 0.5f) {
         int steps = std::max(std::abs(x2 - x1), std::abs(y2 - y1));
         if (steps < 1) steps = 1;
         for (int s = 0; s <= steps; s++) {
             float t = (float)s / steps;
             int cx = x1 + (int)((x2 - x1) * t);
             int cy = y1 + (int)((y2 - y1) * t);
-            addDensity(cx, cy, amount, radius);
+            addDensity(cx, cy, amount, radius, h);
         }
     }
 
-    void addDensity(int x, int y, float amount, float radius) {
+    void addDensity(int x, int y, float amount, float radius, float h = 0.5f) {
         for (int j = -(int)radius; j <= (int)radius; j++) {
             for (int i = -(int)radius; i <= (int)radius; i++) {
                 int gx = x + i, gy = y + j;
                 if (gx < 1 || gx > N || gy < 1 || gy > N) continue;
                 float d = std::sqrt(i*i + j*j);
                 if (d > radius) continue;
-                dens[IX(gx, gy)] += amount * (1 - d / radius);
+                float w = amount * (1 - d / radius);
+                float old_dens = dens[IX(gx, gy)];
+                float old_hue = hue[IX(gx, gy)];
+                dens[IX(gx, gy)] += w;
+                if (dens[IX(gx, gy)] > 0)
+                    hue[IX(gx, gy)] = (old_hue * old_dens + h * w) / dens[IX(gx, gy)];
             }
         }
     }
@@ -74,7 +81,7 @@ public:
 
     void addSplash(int cx, int cy, float intensity) {
         int r = 15;
-        addDensity(cx, cy, intensity, r);
+        addDensity(cx, cy, intensity, r, 1.0f);
         for (int j = -r; j <= r; j++) {
             for (int i = -r; i <= r; i++) {
                 int gx = cx + i, gy = cy + j;
@@ -85,14 +92,41 @@ public:
                 float angle = std::atan2(j - 3, i) + ((rand() % 200) - 100) * 0.008f;
                 u[IX(gx, gy)] += std::cos(angle) * strength;
                 v[IX(gx, gy)] += std::sin(angle) * strength;
-                if (dist > r * 0.35f && (rand() % 4 == 0))
+                if (dist > r * 0.35f && (rand() % 4 == 0)) {
                     dens[IX(gx, gy)] += 0.4f * (1.0f - dist / r);
+                    float od = dens[IX(gx, gy)] - 0.4f * (1.0f - dist / r);
+                    if (dens[IX(gx, gy)] > 0)
+                        hue[IX(gx, gy)] = (hue[IX(gx, gy)] * std::max(0.0f, od) + 1.0f * 0.4f * (1.0f - dist / r)) / dens[IX(gx, gy)];
+                }
             }
         }
     }
 
-    void step(float gravity) {
-        // 1. Gravity — only where water exists
+    void addVorticityConfinement(float eps) {
+        // Compute vorticity ω = ∂v/∂x - ∂u/∂y
+        #pragma omp parallel for collapse(2)
+        for (int j = 1; j <= N; j++)
+            for (int i = 1; i <= N; i++)
+                wk[IX(i, j)] = (v[IX(i+1, j)] - v[IX(i-1, j)]
+                              - u[IX(i, j+1)] + u[IX(i, j-1)]) * 0.5f * N;
+        // Confinement force: f = eps * (∇|ω| × ω)  (perpendicular to grad)
+        #pragma omp parallel for collapse(2)
+        for (int j = 2; j < N; j++)
+            for (int i = 2; i < N; i++) {
+                float dwdx = (std::abs(wk[IX(i+1, j)]) - std::abs(wk[IX(i-1, j)])) * 0.5f * N;
+                float dwdy = (std::abs(wk[IX(i, j+1)]) - std::abs(wk[IX(i, j-1)])) * 0.5f * N;
+                float len = std::sqrt(dwdx * dwdx + dwdy * dwdy) + 1e-8f;
+                dwdx /= len; dwdy /= len;
+                u[IX(i, j)] += eps * dwdy * wk[IX(i, j)];
+                v[IX(i, j)] -= eps * dwdx * wk[IX(i, j)];
+            }
+    }
+
+    void step(float gravity, float vort_eps = 8.0f) {
+        // 1. Vorticity confinement (re-injects swirling eddies)
+        addVorticityConfinement(vort_eps);
+
+        // 2. Gravity — only where water exists
         #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++)
             for (int i = 1; i <= N; i++)
@@ -118,6 +152,11 @@ public:
         std::swap(dens, dens_prev);
         setBnd(dens.data(), 0);
 
+        // 5b. Advect hue with reflective walls
+        advect(hue_prev.data(), hue.data(), u.data(), v.data(), dt, true);
+        std::swap(hue, hue_prev);
+        setBnd(hue.data(), 0);
+
         // 6. Cap density to prevent runaway accumulation at walls
         #pragma omp parallel for collapse(2)
         for (int j = 1; j <= N; j++)
@@ -129,13 +168,15 @@ public:
         std::fill(u.begin(), u.end(), 0.0f);
         std::fill(v.begin(), v.end(), 0.0f);
         std::fill(dens.begin(), dens.end(), 0.0f);
+        std::fill(hue.begin(), hue.end(), 0.5f);
         std::fill(u_prev.begin(), u_prev.end(), 0.0f);
         std::fill(v_prev.begin(), v_prev.end(), 0.0f);
         std::fill(dens_prev.begin(), dens_prev.end(), 0.0f);
+        std::fill(hue_prev.begin(), hue_prev.end(), 0.5f);
     }
 
     // Public data
-    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev, p, div, wk;
+    std::vector<float> u, v, u_prev, v_prev, dens, dens_prev, hue, hue_prev, p, div, wk;
 
 private:
     void setBnd(float* f, int b) {
@@ -265,7 +306,7 @@ public:
     ~Renderer() { if (m_tex) SDL_DestroyTexture(m_tex); }
 
     void present(FluidSolver& sol, int offX, int offY, int drawW, int drawH) {
-        // Render density field into texture
+        // Render density field into texture with 3D height-field lighting
         int sz = sol.N + 2;
         float scaleX = (float)m_texW / sol.N;
         float scaleY = (float)m_texH / sol.N;
@@ -283,26 +324,52 @@ public:
                     continue;
                 }
 
-                float t = std::min(d / 0.5f, 1.0f);
-                float depth = std::min(d / 0.3f, 1.0f);
+                float h = std::min(d / 0.4f, 1.0f);
 
-                Uint8 r = (Uint8)(15 + t * 110);
-                Uint8 g = (Uint8)(45 + t * 180);
-                Uint8 b = (Uint8)(130 + t * 125);
-                Uint8 a = (Uint8)(std::min(d / 0.12f, 1.0f) * 255);
+                // Normal from density gradient (height map)
+                int gi1 = std::max(gi - 1, 1);
+                int gi2 = std::min(gi + 1, sol.N);
+                int gj1 = std::max(gj - 1, 1);
+                int gj2 = std::min(gj + 1, sol.N);
+                float dl = sol.dens[sol.IX(gi1, gj)];
+                float dr = sol.dens[sol.IX(gi2, gj)];
+                float du = sol.dens[sol.IX(gi, gj1)];
+                float dd = sol.dens[sol.IX(gi, gj2)];
 
-                // Specular shimmer from density gradient (neighbors)
-                float dx = sol.dens[sol.IX(std::min(gi+1,sol.N), gj)]
-                         - sol.dens[sol.IX(std::max(gi-1,1), gj)];
-                float dy = sol.dens[sol.IX(gi, std::min(gj+1,sol.N))]
-                         - sol.dens[sol.IX(gi, std::max(gj-1,1))];
-                float spec = std::abs(dx) + std::abs(dy);
-                float sh = std::min(spec * 3.0f, 1.0f) * 0.35f;
-                r = (Uint8)std::min(255.0f, r + sh * 180);
-                g = (Uint8)std::min(255.0f, g + sh * 160);
-                b = (Uint8)std::min(255.0f, b + sh * 120);
+                float nx = (dl - dr) * 0.8f;
+                float ny = (du - dd) * 0.8f;
+                float nz = 1.0f;
+                float nl = std::sqrt(nx * nx + ny * ny + nz * nz);
+                if (nl > 0) { nx /= nl; ny /= nl; nz /= nl; }
 
-                m_pix[j * m_texW + i] = (a << 24) | (r << 16) | (g << 8) | b;
+                // Light from upper-right
+                float lx = 0.3f, ly = -0.4f, lz = 0.8f;
+                float ll = std::sqrt(lx * lx + ly * ly + lz * lz);
+                lx /= ll; ly /= ll; lz /= ll;
+
+                float diff = std::max(0.0f, nx * lx + ny * ly + nz * lz);
+
+                // Blinn-Phong specular
+                float hx = lx, hy = ly, hz = lz + 1.0f;
+                float hlen = std::sqrt(hx * hx + hy * hy + hz * hz);
+                hx /= hlen; hy /= hlen; hz /= hlen;
+                float spec = std::pow(std::max(0.0f, nx * hx + ny * hy + nz * hz), 16.0f);
+
+                float ambient = 0.25f;
+                float light = std::min(ambient + diff * 0.75f + spec * 0.5f, 1.0f);
+
+                // Base color from hue: 0=red, 0.5=purple, 1=blue
+                float hue_val = sol.hue[sol.IX(gi, gj)];
+                float r = (180.0f * (1.0f - hue_val) + 30.0f * hue_val) / 255.0f;
+                float g = (40.0f * (1.0f - hue_val) + 60.0f * hue_val) / 255.0f;
+                float b = (50.0f * (1.0f - hue_val) + 200.0f * hue_val) / 255.0f;
+
+                Uint8 pr = (Uint8)std::min(255.0f, r * light * 255.0f + spec * 200.0f);
+                Uint8 pg = (Uint8)std::min(255.0f, g * light * 255.0f + spec * 200.0f);
+                Uint8 pb = (Uint8)std::min(255.0f, b * light * 255.0f + spec * 200.0f);
+                Uint8 pa = (Uint8)(std::min(d / 0.12f, 1.0f) * 255);
+
+                m_pix[j * m_texW + i] = (pa << 24) | (pr << 16) | (pg << 8) | pb;
             }
         }
 
@@ -443,7 +510,7 @@ int main() {
                 int ngy = (e.motion.y - PAD) * N / CONT_H;
                 if (gx >= 1 && gx <= N && gy >= 1 && gy <= N &&
                     ngx >= 1 && ngx <= N && ngy >= 1 && ngy <= N) {
-                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4);
+                    sol.addDensityLine(gx, gy, ngx, ngy, 0.4f, 4, 0.0f);
                     sol.addVelocity(gx, gy,
                         (ngx - gx) * 60.0f, (ngy - gy) * 60.0f, 5);
                 }
